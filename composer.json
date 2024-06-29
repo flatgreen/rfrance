@@ -1,0 +1,30 @@
+{
+    "name": "flatgreen/rfrance",
+    "description": "Scrape R A D I O  F R A N C E",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "Flatgreen\\RFrance\\": "src/"
+        },
+        "files": [
+            "src/functions.php"
+        ],
+            "exclude-from-classmap": [
+            "/tests/"
+        ]
+    },
+    "require": {
+        "symfony/cache": "^7.1",
+        "symfony/dom-crawler": "^7.1",
+        "symfony/css-selector": "^7.1"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1.11",
+        "phpunit/phpunit": "^11.2",
+        "symfony/var-dumper": "^7.1"
+    },
+    "scripts": {
+        "phpstan": "phpstan analyse --level 8 src/"
+    },
+    "license": "MIT"
+}
