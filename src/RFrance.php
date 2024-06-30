@@ -18,13 +18,13 @@ use Symfony\Contracts\Cache\ItemInterface;
 /**
  * RFrance a class to scrape and parse r a d i o f r a n c e
  *
- * > $rf = new RFrance();
+ * > $rf = new RFrance(); // avec un cache
  * >
- * > $rf->extract(URL);
+ * > $rf->extract(URL); // see others params
  * >
- * > echo $rf->page->
+ * > echo $rf->page->...
  * >
- * > echo $rf->page->all_items.
+ * > echo $rf->page->all_items // array of Item
  *
  */
 class RFrance
@@ -92,10 +92,13 @@ class RFrance
     /**
      * extract
      *
-     * With an url : parse, extract all good informations
+     * With an url : parse, extract all good informations.
+     *
+     * Attention : download one page for one item
      *
      * @param string $url
      * @param bool $force_rss extract if a rss feed exist
+     * @param int $max_items max number of items (approx.)
      * @return bool
      */
     public function extract(string $url, bool $force_rss = false, int $max_items = -1)
@@ -134,7 +137,7 @@ class RFrance
         $scripts_arr = $this->extractScriptsJson();
         // recherche dans ['@graph' => ], il y 3 cas d'intéressant pour '@type' :
         foreach ($scripts_arr['@graph'] as $a_graph) {
-            // 'NewsArticle' seul, c'est un article de blabla
+            // 'NewsArticle' seul, c'est un article de blabla, sinon il y a des infos pour 'page'
             if ($a_graph['@type'] == 'NewsArticle') {
                 $this->page->type = 'NewsArticle';
                 $this->page->title = html_entity_decode($a_graph['headline']);
