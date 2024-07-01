@@ -29,14 +29,15 @@ use Symfony\Contracts\Cache\ItemInterface;
  */
 class RFrance
 {
-    private int $max_items;
+    public const RADIOFRANCE_BASE_URL = 'https://www.radiofrance.fr/';
+
     private \Symfony\Component\DomCrawler\Crawler $crawler;
     private \Symfony\Component\Cache\Adapter\FilesystemAdapter $cache;
-    public string $error = '';
+    private ?string $cache_directory;
 
     public Page $page;
-
-    public const RADIOFRANCE_BASE_URL = 'https://www.radiofrance.fr/';
+    public string $error = '';
+    public string $short_path = '';
 
     /** @var array<string> */
     private array $excluded_end_urls = [
@@ -48,6 +49,7 @@ class RFrance
     public function __construct(?string $cache_directory = null, int $defaultLifetime = 0)
     {
         $this->page  = new Page();
+        $this->cache_directory = $cache_directory;
         $this->cache = new FilesystemAdapter('rfrance', $defaultLifetime, $cache_directory);
     }
 
@@ -103,14 +105,14 @@ class RFrance
      */
     public function extract(string $url, bool $force_rss = false, int $max_items = -1)
     {
-        $this->max_items = $max_items;
         if (filter_var($url, FILTER_VALIDATE_URL) === false) {
             $this->error = 'url non valide';
             return false;
         }
 
         $path = (string)parse_url($url, PHP_URL_PATH);
-        if (in_array(basename($path), $this->excluded_end_urls)) {
+        $this->short_path = basename($path);
+        if (in_array($this->short_path, $this->excluded_end_urls)) {
             $this->error = 'URL non prise en charge';
             return false;
         }
@@ -121,12 +123,13 @@ class RFrance
             $this->error = 'Le scraping a échoué (' . $this->page->webpage_url . ')';
             return false;
         }
+
         $this->crawler = new Crawler($html);
 
         if ($force_rss === false) {
             // recherche d'un flus rss, on ne sait jamais...
             // <link rel="alternate" title="À voix nue : podcast et émission en replay | France Culture" href="https://radiofrance-podcast.net/podcast09/rss_10351.xml" type="application/rss+xml">
-            $rss_url = $this->crawler->filter('link[rel="alternate"]')->attr('href');
+            $rss_url = $this->crawler->filter('link[rel="alternate"]')->attr('href', '');
             if (!empty($rss_url)) {
                 $this->error = 'Il y a un flux : ' . $rss_url;
                 return false;
@@ -135,7 +138,7 @@ class RFrance
 
         // on récupère les <script type="application/ld+json">, on merge
         $scripts_arr = $this->extractScriptsJson();
-        // recherche dans ['@graph' => ], il y 3 cas d'intéressant pour '@type' :
+        // recherche dans ['@graph' => ], il y 3 cas intéressants pour '@type' :
         foreach ($scripts_arr['@graph'] as $a_graph) {
             // 'NewsArticle' seul, c'est un article de blabla, sinon il y a des infos pour 'page'
             if ($a_graph['@type'] == 'NewsArticle') {
@@ -179,7 +182,7 @@ class RFrance
                     // pas d'image dans les @graph
                     $this->page->image = $this->extractImage();
                     $this->page->timestamp = strtotime($this->crawler->filter('meta[property="article:published_time"]')->attr('content') ?: '') ?: 0;
-                    return $this->getAllItemsFromSerie($scripts_arr);
+                    return $this->getAllItemsFromSerie($scripts_arr, $max_items);
                 } else {
                     $this->page->type = 'WebPage';
                     $this->page->title = $a_graph['name'];
@@ -200,10 +203,11 @@ class RFrance
      * @param array<mixed> $scripts_arr all json (ld+json) array manner
      * @return bool
      */
-    private function getAllItemsFromSerie(array $scripts_arr)
+    private function getAllItemsFromSerie(array $scripts_arr, int $max_items)
     {
         $num_page = 1;
         $a_next = '';
+        $num_episode = 1;
 
         // +sieurs pages ? => On repère dans $dom_parser (c'est dans le dernier 'script') le "a.next=...;"
         // si c'est "null" (string), c'est une seule page (ou pas de page suivante)
@@ -233,9 +237,16 @@ class RFrance
             }
             // on scrape les items un par un
             foreach ($url as $one_url) {
-                $new_rf = new RFrance();
+                $new_rf = new RFrance($this->cache_directory, 0);
                 $new_rf->extract($one_url, true);
                 if (empty($new_rf->error)) {
+                    // ajout du num de l'épisode (à priori un seul épisode)
+                    foreach($new_rf->page->all_items as $k => $v) {
+                        $new_title = $num_episode . ' - ' . $v->title;
+                        $new_rf->page->all_items[$k]->title = $new_title;
+                        ++$num_episode;
+                    }
+                    // ajout au global
                     $this->page->all_items = array_merge($this->page->all_items, $new_rf->page->all_items);
                 } else {
                     $this->error = 'page ' . $num_page . ', pas d\'information extraite - js or json erreur.';
@@ -243,7 +254,7 @@ class RFrance
                 }
             }
             // limite ?
-            if ($this->max_items == -1 || count($this->page->all_items) <= $this->max_items) {
+            if ($max_items == -1 || count($this->page->all_items) <= $max_items) {
                 $a_next = $this->getNext();
             } else {
                 $a_next = 'null';
