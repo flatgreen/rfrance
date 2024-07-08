@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.2.0] - 2024-07-08
+
+### Added
+- "http-client" (et les requêtes en parallèle avec cUrl) pour les items.
+- Extrait les items sans media
+- Purger le cache 
+
+### Fixed
+- les durées des caches par defaut sont plus cohérentes.
+- qq légers bug :-)
+
 ## [1.1.0] - 2024-07-01
 
 ### Added

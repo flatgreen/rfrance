@@ -1,4 +1,10 @@
 <?php
+/*
+ * (c) flatgreen <flatgreen@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
 
 namespace Flatgreen\RFrance;
 
@@ -8,7 +14,6 @@ class Item extends AbstractData
     public string $id;
     public string $mimetype;
     public int $duration;
-    public bool $is_expired;
     /** @var string $playlist maybe partOfSeries */
     public string $playlist;
     /** @var string $thumbnail the src of the image */

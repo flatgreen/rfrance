@@ -4,7 +4,8 @@ PHP library for french radio.
 RFrance a class to scrape and parse r a d i o f r a n c e
 
 ## Prerequisites
-- php >= 8.0
+- php >= 8.2
+- cUrl extension recommanded
 
 ## Installation
 - Use the package manager [composer](https://getcomposer.org/) to install RFrance.
@@ -24,11 +25,12 @@ Instantiate the class, define a URL page
 
 ```php
 $rf = new RFrance();
-    // optional, add a cache directory and cache duration
+// optional in constructor, add a cache directory and cache duration for page, 1 day by default
 
 $rf->extract(URL);
-    // force extract with rss in page : $force_rss
-    // ATTENTION, one item <=> one request, set a limit $max_items !
+// optional:
+// - force extract when rss exist : $force_rss (default: false)
+// - set a limit $max_items (default: -1, all items)
 ```
 
 Read the informations
@@ -52,6 +54,9 @@ echo $FC->toRss();
 header('Content-Type: application/json; charset=utf-8');
 echo $FC->toInfoJson();
 ```
+
+### Remarks
+Does not take into account pages that are not broadcasts.
 
 ## License
 RFrance is licensed under the MIT License (MIT). Please see the [license file](/LICENSE) for more information.
