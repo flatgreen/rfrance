@@ -87,7 +87,7 @@ class RFrance
      * Get htmls from urls, cache never expires, use cUrl for concurrent download
      *
      * @param string[]|string $urls
-     * @return string[] ['url' => 'html']
+     * @return array<string, string> ['url' => 'html']
      */
     private function getHtml2(array|string $urls): array
     {
@@ -289,7 +289,7 @@ class RFrance
         // sinon, on scrape $url?p=2, on prend les items, et on recommence jusqu'à la limite max_items.
 
         while ($a_next !== 'null') {
-            // on scrape le site (la page "1" est dejà dans crawler)
+            // on scrape la page (la page "1" est dejà dans crawler)
             // on pourrait prendre la page 1 dans le cache et enlever le param '$graph'
             if ($num_page !== 1) {
                 $html = $this->getHtml($this->page->webpage_url . '?p=' . $num_page);
@@ -309,14 +309,21 @@ class RFrance
                 }
             }
 
-            // on scrape tous les épisodes d'un coup, on traite un par un
+            // on scrape tous les épisodes d'un coup,
             $htmls = $this->getHtml2($urls);
+            // on traite un par un
             foreach($htmls as $k_url => $html) {
                 $a_crawler = new Crawler($html);
                 $a_graph = $this->extractGraphFromScriptsJson($a_crawler);
                 $item = $this->getEpisodeItem($k_url, $a_graph['RadioEpisode']);
-                // on renumérote (l'info n'est pas dans un @graph, mais dans la page de l'émission)
-                $item->title = $num_episode . ' - ' . $item->title;
+                // le titre n'est pas dans le graph, mais dans la page de l'émission
+                $title = $a_crawler->filter('h1.CoverEpisode-title')->text('');
+                // Au cas où, on renumérote à partir de l'extraction
+                if (empty($title)) {
+                    $item->title = $num_episode . ' - ' . $item->title;
+                } else {
+                    $item->title = $title;
+                }
                 $this->page->all_items[] = $item;
                 // si pas d'émission, on enlève du cache.
                 // permet d'avoir des épisodes pas encore en ligne, mais reprend des vieux sans épisodes
@@ -338,7 +345,7 @@ class RFrance
     }
 
     /**
-     * From dom_parser (html) retrieve a.next du type 'a.next="MjA=";' et return "MjA="
+     * From dom_parser (html) retrieve a.next du type 'a.next="MjA=";' et return "MjA=" ou 'null'
      *
      * @return string
      */
@@ -346,7 +353,7 @@ class RFrance
     {
         $html = $this->crawler->html();
         preg_match('/a\.next=(.{4,6});/', $html, $matches);
-        $a_next = $matches[1];
+        $a_next = $matches[1] ?? 'null';
         $a_next = trim($a_next, '"');
         return $a_next;
     }

@@ -4,7 +4,7 @@ PHP library for french radio.
 RFrance a class to scrape and parse r a d i o f r a n c e
 
 ## Prerequisites
-- php >= 8.2
+- php >= 8.1
 - cUrl extension recommanded
 
 ## Installation
