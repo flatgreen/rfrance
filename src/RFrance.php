@@ -154,6 +154,19 @@ class RFrance
     }
 
     /**
+     * If a crawler exist, we can inject before 'extract($url)'
+     *
+     * This external crawler have to be initialize : new Crawler($html);
+     *
+     * @param Crawler $crawler
+     * @return void
+     */
+    public function setCrawler(Crawler $crawler): void
+    {
+        $this->crawler = $crawler;
+    }
+
+    /**
      * extract
      *
      * With an url : parse, extract all good informations.
@@ -179,13 +192,15 @@ class RFrance
             return false;
         }
 
-        $html = $this->getHtml($url);
-        if ($html === false) {
-            $this->error = 'Le scraping a échoué (' . $url . ')';
-            return false;
+        // Il faut un crawler à base du html de l'url
+        if (!isset($this->crawler)) {
+            $html = $this->getHtml($url);
+            if ($html === false) {
+                $this->error = 'Le scraping a échoué (' . $url . ')';
+                return false;
+            }
+            $this->crawler = new Crawler($html);
         }
-
-        $this->crawler = new Crawler($html);
 
         if ($force_rss === false) {
             // recherche d'un flus rss, on ne sait jamais...
@@ -307,7 +322,7 @@ class RFrance
 
             // on scrape tous les épisodes d'un coup,
             $htmls = $this->getHtml2($urls);
-            // on traite un par un
+            // on traite un par un (là c'est un peu long...)
             foreach($htmls as $k_url => $html) {
                 $a_crawler = new Crawler($html);
                 $a_graph = $this->extractGraphFromScriptsJson($a_crawler);

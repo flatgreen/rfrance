@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.3.2] - 2024-11-04
+### Added
+- on peut injecter un (dom) crawler dans la classe
+
 ## [1.3.1] - 2024-11-03
 ### Fixed
 - Extraction de l'image de la page pour une série
