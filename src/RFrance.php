@@ -207,11 +207,7 @@ class RFrance
             $this->page->webpage_url = $url;
             $this->page->title = html_entity_decode($radio_episode['name']);
             $this->page->description = html_entity_decode($radio_episode['description']);
-            if (isset($radio_episode['image'])) {
-                $this->page->image->src = $radio_episode['image']['url'];
-                $this->page->image->width = (int)$radio_episode['image']['width'];
-                $this->page->image->height = (int)$radio_episode['image']['height'];
-            }
+            $this->page->image = $this->extractImage($radio_episode);
             $item = $this->getEpisodeItem($this->page->webpage_url, $radio_episode);
             $this->page->all_items[] = $item;
             return true;
@@ -219,20 +215,20 @@ class RFrance
 
         if (in_array('WebPage', array_keys($graph))) {
             // cas 'WebPage' c'est une serie ou une liste de podcasts
-            $web_page = $graph['WebPage'];
-            if (isset($web_page['mainEntity'])) {
+            $graph_web_page = $graph['WebPage'];
+            if (isset($graph_web_page['mainEntity'])) {
                 $this->page->type = 'RadioSeries';
                 $this->page->webpage_url = $url;
-                $this->page->title = html_entity_decode($web_page['mainEntity']['name']);
-                $this->page->description = html_entity_decode($web_page['mainEntity']['abstract']);
-                // pas d'image dans les @graph
-                $this->page->image = $this->extractImage();
+                $this->page->title = html_entity_decode($graph_web_page['mainEntity']['name']);
+                $this->page->description = html_entity_decode($graph_web_page['mainEntity']['abstract']);
+                // image dans les @graph depuis nov. 2024 et plus dans les meta pour les series
+                $this->page->image = $this->extractImage($graph_web_page['mainEntity']);
                 $this->page->timestamp = strtotime($this->crawler->filter('meta[property="article:published_time"]')->attr('content') ?: '') ?: 0;
                 return $this->getAllItemsFromSerie($graph, $max_items);
             } else {
                 $this->page->type = 'WebPage';
-                $this->page->title = $web_page['name'];
-                $this->page->description = $web_page['description'];
+                $this->page->title = $graph_web_page['name'];
+                $this->page->description = $graph_web_page['description'];
                 return true;
             }
         }
@@ -359,16 +355,23 @@ class RFrance
     }
 
     /**
-     * Use the crawler to find an image in meta tags
+     * Use the crawler or the graph to find an image in meta tags
      *
+     * @param array<mixed> $graph_within_image
      * @return stdClass $image
      */
-    private function extractImage()
+    private function extractImage(array $graph_within_image)
     {
         $image = new stdClass();
         $image->src = $this->crawler->filter('meta[property="og:image"]')->attr('content', '');
         $image->height = (int) $this->crawler->filter('meta[property="og:image:height"]')->attr('content', '0');
         $image->width = (int) $this->crawler->filter('meta[property="og:image:width"]')->attr('content', '0');
+
+        if (empty($image->src) && isset($graph_within_image['image'])) {
+            $image->src = $graph_within_image['image']['url'];
+            $image->height = $graph_within_image['image']['height'];
+            $image->width = $graph_within_image['image']['width'];
+        }
         return $image;
     }
 

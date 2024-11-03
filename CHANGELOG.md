@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.3.1] - 2024-11-03
+### Fixed
+- Extraction de l'image de la page pour une série
+
+
 ## [1.3] - 2024-09-27
 ### Added
 - pour les séries, extrait le "bon" titre dans la page d'une émission
