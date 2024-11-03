@@ -14,10 +14,10 @@
         ]
     },
     "require": {
-        "symfony/cache": "^6.4",
-        "symfony/dom-crawler": "^6.4",
-        "symfony/css-selector": "^6.4",
-        "symfony/http-client": "^6.4"
+        "symfony/cache": "^6.0|^7.0",
+        "symfony/dom-crawler": "^6.0|^7.0",
+        "symfony/css-selector": "^6.0|^7.0",
+        "symfony/http-client": "^6.0|^7.0"
     },
     "scripts": {
         "phpstan": "phpstan analyse --level 8 src/"
