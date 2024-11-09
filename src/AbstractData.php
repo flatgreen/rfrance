@@ -16,6 +16,8 @@ abstract class AbstractData
     public string $title;
     public string $description;
     public int $timestamp;
+    public bool $force_rss = false;
+    public ?string $rss_url = null;
     public stdClass $image;
 
     public function __construct()

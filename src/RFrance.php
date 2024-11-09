@@ -202,14 +202,14 @@ class RFrance
             $this->crawler = new Crawler($html);
         }
 
+        $this->page->force_rss = $force_rss;
+        // recherche (basique) d'un flus rss, on ne sait jamais...
+        // <link rel="alternate" title="À v ..." href="https://radiofran...0351.xml" type="application/rss+xml">
+        $crawler_rss = $this->crawler->filter('link[rel="alternate"]');
+        $this->page->rss_url = ($crawler_rss->count() > 0) ? $crawler_rss->attr('href') : null;
         if ($force_rss === false) {
-            // recherche d'un flus rss, on ne sait jamais...
-            // <link rel="alternate" title="À voix ..." href="https://radiofran...0351.xml" type="application/rss+xml">
-            $rss_url = $this->crawler->filter('link[rel="alternate"]')->attr('href', '');
-            if (!empty($rss_url)) {
-                $this->error = 'Il y a un flux : ' . $rss_url;
-                return false;
-            }
+            $this->error = 'Il y a un flux : ' . (string)$this->page->rss_url;
+            return false;
         }
 
         // on récupère les <script type="application/ld+json">, on merge, on récupère @graph
@@ -378,9 +378,12 @@ class RFrance
     private function extractImage(array $graph_within_image)
     {
         $image = new stdClass();
-        $image->src = $this->crawler->filter('meta[property="og:image"]')->attr('content', '');
-        $image->height = (int) $this->crawler->filter('meta[property="og:image:height"]')->attr('content', '0');
-        $image->width = (int) $this->crawler->filter('meta[property="og:image:width"]')->attr('content', '0');
+        $image_crawler = $this->crawler->filter('meta[property="og:image"]');
+        if ($image_crawler->count() > 0) {
+            $image->src = $this->crawler->filter('meta[property="og:image"]')->attr('content');
+            $image->height = (int) $this->crawler->filter('meta[property="og:image:height"]')->attr('content');
+            $image->width = (int) $this->crawler->filter('meta[property="og:image:width"]')->attr('content');
+        }
 
         if (empty($image->src) && isset($graph_within_image['image'])) {
             $image->src = $graph_within_image['image']['url'];
@@ -463,6 +466,7 @@ class RFrance
         $json['channel_url'] = $this->page->webpage_url;
         $json['webpage_url'] = $this->page->webpage_url;
         $json['playlist_count'] = $nb_items;
+        $json['force_rss'] = $this->page->force_rss;
         $json['_type'] = 'playlist';
         foreach($this->page->all_items as $entrie) {
             $json['entries'][] = $entrie;
@@ -470,4 +474,5 @@ class RFrance
         $json_encode = json_encode($json);
         return ($json_encode === false) ? '' : $json_encode;
     }
+
 }

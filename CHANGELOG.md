@@ -6,16 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-## [1.3.2] - 2024-11-04
+## 1.3.3 - 2024-11-09
+### Fixed
+- bug avec le crawler (filter) version 6.0
+### Added
+- requirement php 8.0.2
+- 'force_rss' est dans les données retournées (mais pas dans le flux rss)
+- on peut accéder à l'url d'un hypothétique flux rss : ->page->rss_url
+
+## 1.3.2 - 2024-11-04
 ### Added
 - on peut injecter un (dom) crawler dans la classe
 
-## [1.3.1] - 2024-11-03
+## 1.3.1 - 2024-11-03
 ### Fixed
 - Extraction de l'image de la page pour une série
 
 
-## [1.3] - 2024-09-27
+## 1.3 - 2024-09-27
 ### Added
 - pour les séries, extrait le "bon" titre dans la page d'une émission
 
