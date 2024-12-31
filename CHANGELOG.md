@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
+## 2.0 - 2024-12-31
+### Changed
+- L'initialisation est changée. URL est obligatoire. En option : DomCrawler, le dossier et ttl du cache.
+La validation de l'URL est réalisée dans le constructeur.
+- la méthode 'extract' a un seul argument : max_items.
+
+### Fixed
+- les séries (ou podcast) sans lien d'épisode sont maintenant bien récupérées.
+
+### Remove
+- la dépendance à 'http-client' et à 'cUrl'.
+- option 'force_rss' n'existe plus et c'est tant mieux, c'était confus.
+
+### Add
+- la 'Page' et les 'Item' contiennent un peu plus d'information.
+- s'il y a plusieurs audios pour un épisode, le "meilleur" est sélectionné et la liste est accessible dans item->media.
 
 ## 1.3.4 - 2024-11-09
 ### Fixed
