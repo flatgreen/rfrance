@@ -10,18 +10,15 @@ declare(strict_types=1);
 
 namespace Flatgreen\RFrance;
 
-// use Psr\Cache\CacheItemInterface;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
-// use Symfony\Component\Cache\CacheItem;
 use Symfony\Component\DomCrawler\Crawler;
-use Symfony\Contracts\Cache\ItemInterface;
 
 /**
  * RFrance a class to scrape and parse r a d i o f r a n c e
  *
- * > $rf = new RFrance(); // cache directory en option
+ * > $rf = new RFrance(); // cache directory et ttl en option
  * >
- * > $rf->extract(URL); // see others params
+ * > $rf->extract(URL); // max_items en option
  * >
  * > echo $rf->page->...
  * >
@@ -51,79 +48,57 @@ class RFrance
      * @param string|null $cache_directory
      * @param integer $cache_defaultLifetime in second for pages (default : 1 day)
      */
-    public function __construct(string $url, ?Crawler $crawler = null, ?string $cache_directory = null, int $cache_defaultLifetime = 86400)
+    public function __construct(?string $cache_directory = null, int $cache_defaultLifetime = 86400)
     {
-        if (!$this->isValidUrl($url)) {
-            throw new \InvalidArgumentException($this->error);
-        }
-
         $this->cache = new FilesystemAdapter('rfrance', $cache_defaultLifetime, $cache_directory);
+    }
 
-        if (null !== $crawler) {
+    /**
+     * If we have already a Symfony\Component\DomCrawler\Crawler,
+     * we can use it.
+     */
+    public function setCrawler(Crawler $crawler): void
+    {
+        if ($crawler instanceof Crawler) {
             $this->crawler = $crawler;
-            $this->html = $crawler->html();
-        } else {
-            $this->crawler = $this->getCrawler($url);
         }
-        $this->page = new Page($this->crawler);
-        $this->page->webpage_url = $url;
     }
 
     /**
      * From the actual webpage_url create|set a Crawler and html
      *
      * @param string $url
-     * @throws \Exception
+     * @throws \Exception (http)
+     * @throws \InvalidArgumentException
      * @return Crawler
      */
     private function getCrawler(string $url): Crawler
     {
+        if (!$this->isValidUrl($url)) {
+            throw new \InvalidArgumentException($this->error);
+        }
         $html = $this->getHtml($url);
         if ($html === false) {
             $this->error = 'Le scraping a échoué : ' . $url;
             throw new \Exception($this->error);
         }
         $this->html = $html;
-        return $this->crawler = new Crawler($this->html);
+        return (!isset($this->crawler)) ? new Crawler($this->html) : $this->crawler;
     }
 
     /**
      * Get Html from url, cached
-     *
-     * @param string $url
-     * @return string|false
      */
-    private function getHtml(string $url)
+    private function getHtml(string $url): ?string
     {
         /** @var string|false $html */
-        $html = $this->cache->get(md5($url), function (ItemInterface $item) use ($url) {
+        $html = $this->cache->get(md5($url), function () use ($url) {
             $opts = ['http' => ['header' => self::USER_AGENT]];
             $context = stream_context_create($opts);
             $html = @file_get_contents($url, false, $context);
             return $html;
         });
         return $html;
-    }
-
-    /**
-     * Merge all <script type="application/ld+json"> in an array, return a special '@graph'
-     *
-     * @return array<mixed> The keys are the value of @type in @graph
-     */
-    private function extractGraphFromScriptsJson(): array
-    {
-        $scripts_json = $this->crawler->filter('script[type="application/ld+json"]')->extract(['_text']);
-
-        $all_scripts_decode = [];
-        foreach ($scripts_json as $script_json) {
-            $ar_decode = json_decode($script_json, true);
-            $all_scripts_decode = array_merge_recursive($all_scripts_decode, $ar_decode);
-        }
-        $ar_filter = array_filter($all_scripts_decode['@graph'], function ($v) {
-            return ($v['@type'] !== 'BreadcrumbList');
-        });
-        $ar_combine = array_combine(array_column($ar_filter, '@type'), $ar_filter);
-        return $ar_combine;
     }
 
     private function isValidUrl(string $url): bool
@@ -145,6 +120,37 @@ class RFrance
         return true;
     }
 
+    /**
+     * recherche (basique) d'un flus rss, on ne sait jamais...
+     *
+     * ex : \<link rel="alternate" title="À v ..." href="https://radiofran...0351.xml" type="application/rss+xml">
+     */
+    private function getRssUrl(): ?string
+    {
+        $crawler_rss = $this->crawler->filter('link[rel="alternate"]');
+        return ($crawler_rss->count() > 0) ? $crawler_rss->attr('href') : null;
+    }
+
+    /**
+      * Merge all <script type="application/ld+json"> in an array, return a special '@graph'
+      *
+      * @return array<mixed> The keys are the value of @type in @graph
+      */
+    private function extractGraphFromScriptsJson(): array
+    {
+        $scripts_json = $this->crawler->filter('script[type="application/ld+json"]')->extract(['_text']);
+
+        $all_scripts_decode = [];
+        foreach ($scripts_json as $script_json) {
+            $ar_decode = json_decode($script_json, true);
+            $all_scripts_decode = array_merge_recursive($all_scripts_decode, $ar_decode);
+        }
+        $ar_filter = array_filter($all_scripts_decode['@graph'], function ($v) {
+            return ($v['@type'] !== 'BreadcrumbList');
+        });
+        $ar_combine = array_combine(array_column($ar_filter, '@type'), $ar_filter);
+        return $ar_combine;
+    }
 
     /**
      * parse, extract all good informations.
@@ -152,11 +158,16 @@ class RFrance
      * @param int $max_items max number of items (approx.), -1 for all items
      * @return bool
      */
-    public function extract(int $max_items = -1)
+    public function extract(string $url, int $max_items = -1)
     {
+        $this->crawler = $this->getCrawler($url);
+
+        $this->page = new Page($this->crawler);
+        $this->page->webpage_url = $url;
+
         $this->max_items = $max_items;
 
-        $this->page->setRssUrl();
+        $this->page->rss_url = $this->getRssUrl();
         $this->page->short_path = short_path($this->page->webpage_url);
 
         // on récupère les <script type="application/ld+json">, on merge, on récupère @graph

@@ -34,16 +34,7 @@ class Page
         $this->crawler = $crawler;
     }
 
-    /**
-     * recherche (basique) d'un flus rss, on ne sait jamais...
-     *
-     * ex : \<link rel="alternate" title="À v ..." href="https://radiofran...0351.xml" type="application/rss+xml">
-     */
-    public function setRssUrl(): void
-    {
-        $crawler_rss = $this->crawler->filter('link[rel="alternate"]');
-        $this->rss_url = ($crawler_rss->count() > 0) ? $crawler_rss->attr('href') : null;
-    }
+
 
     /**
      * @param mixed[] $graph
