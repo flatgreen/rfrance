@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
-## 2.0 - 2024-12-31
+## 2.2 - 2025-01-15
+### Fixed
+- 'emission' n'était pas bien détecté dans les séries et levait une exception (chgmnt api RF)
+
+## 2.1 - 2024-01-01
 ### Changed
 - la méthode 'extract' a deux arguments : URL et max_items.
 L'option 'force_rss' n'existe plus et c'est tant mieux, c'était confus.

@@ -75,7 +75,7 @@ class Item
         $this->title = $player_info['title'];
         $this->description = trim($player_info['description']);
         $this->id = $player_info['id'];
-        $this->playlist = $player_info['tracking']['emission'];
+        $this->playlist = $player_info['playerInfo']['playerMetadata']['firstLine'] ?? '';
         $this->thumbnail = $player_info['visual']['src'];
         $this->webpage_url = UriResolver::resolve($player_info['link'], $page_webpage_url);
         $this->duration = (int) $player_info['manifestations'][0]['duration'];
@@ -102,6 +102,6 @@ class Item
         });
         // pour 'url' on prend le premier
         $this->url = $this->media[0]['url'];
-        $this->mimetype = get_audio_mimetype($this->url);
+        $this->mimetype = $this->media[0]['mimetype'];
     }
 }

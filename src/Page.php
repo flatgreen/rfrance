@@ -34,8 +34,6 @@ class Page
         $this->crawler = $crawler;
     }
 
-
-
     /**
      * @param mixed[] $graph
      */
@@ -70,9 +68,6 @@ class Page
         $this->timestamp = strtotime($this->crawler->filter('meta[property="article:published_time"]')->attr('content') ?: '') ?: 0;
     }
 
-
-
-
     /**
      * Use  the graph to find an image in meta tags
      *
@@ -84,13 +79,6 @@ class Page
     private function extractImage(array $graph_within_image)
     {
         $image = new stdClass();
-        // $image_crawler = $this->crawler->filter('meta[property="og:image"]');
-        // if ($image_crawler->count() > 0) {
-        //     $image->src = $this->crawler->filter('meta[property="og:image"]')->attr('content');
-        //     $image->height = (int) $this->crawler->filter('meta[property="og:image:height"]')->attr('content');
-        //     $image->width = (int) $this->crawler->filter('meta[property="og:image:width"]')->attr('content');
-        // }
-
         if (isset($graph_within_image['image'])) {
             $image->src = $graph_within_image['image']['url'];
             $image->height = $graph_within_image['image']['height'];

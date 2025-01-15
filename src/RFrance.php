@@ -83,13 +83,15 @@ class RFrance
             throw new \Exception($this->error);
         }
         $this->html = $html;
-        return (!isset($this->crawler)) ? new Crawler($this->html) : $this->crawler;
+        return (isset($this->crawler)) ? $this->crawler : new Crawler($this->html);
     }
 
     /**
      * Get Html from url, cached
+     *
+     * @return string|false content body
      */
-    private function getHtml(string $url): ?string
+    private function getHtml(string $url)
     {
         /** @var string|false $html */
         $html = $this->cache->get(md5($url), function () use ($url) {
@@ -284,8 +286,8 @@ class RFrance
                 $big_info = substr_replace($big_info, $new_in, $offset, $len_m1_0);
                 $delta = $delta + strlen($new_in) - $len_m1_0;
             }
-            // parfois un épisode n'est pas près, on arrange
-            $big_info = preg_replace('/manifestations:\w/', 'manifestation:"null"', $big_info);
+            // parfois un épisode n'est pas près, on arrange (on vide)
+            $big_info = preg_replace('/manifestations:\w/', 'manifestations:""', $big_info);
             // pour une list de 'playerInfo'
             $big_info = '[' . $big_info . ']';
             // file_put_contents('cache/aa.json', $big_info);
@@ -297,8 +299,8 @@ class RFrance
                 return false;
             }
 
-            // au passage, le nom de l'émission :
-            $this->page->emission = $big_info_array[0]['tracking']['emission'];
+            // au passage, le nom de l'émission
+            $this->page->emission = $big_info_array[0]['playerInfo']['playerMetadata']['firstLine'] ?? '';
 
             // on assigne pour chaque 'playerInfo' contenant 'manifestations'
             foreach($big_info_array as $info) {
@@ -336,7 +338,6 @@ class RFrance
         $a_next = trim($a_next, '"');
         return $a_next;
     }
-
 
     public function pruneCache(): void
     {
