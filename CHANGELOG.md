@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
+## 2.2.1 - 2025-01-15
+### Fixed
+- README.md
+
 ## 2.2 - 2025-01-15
 ### Fixed
 - 'emission' n'était pas bien détecté dans les séries et levait une exception (chgmnt api RF)

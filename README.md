@@ -23,11 +23,10 @@ use Flatgreen\RFrance\RFrance;
 Instantiate the class, with an URL page
 
 ```php
-$rf = new RFrance(URL);
-// optional in constructor, add an existing Crawler instance, a cache directory and cache duration for page, 1 day by default.
-// throws an exception if the url is not valid.
+$rf = new RFrance();
+// optional in constructor, add cache directory and cache duration for page, 1 day by default.
 
-$rf->extract();
+$rf->extract(URL);
 // optional: set a (approx.) limit $max_items (default: -1, all items)
 ```
 
