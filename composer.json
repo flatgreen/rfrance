@@ -21,7 +21,8 @@
         "colinodell/json5": "^3.0"
     },
     "scripts": {
-        "phpstan": "phpstan analyse --level 8 src/"
+        "phpstan": "phpstan analyse --level 8 src/",
+        "tests": "phpunit tests/"
     },
     "license": "MIT",
     "require-dev": {

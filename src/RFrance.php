@@ -15,15 +15,6 @@ use Symfony\Component\DomCrawler\Crawler;
 
 /**
  * RFrance a class to scrape and parse r a d i o f r a n c e
- *
- * > $rf = new RFrance(); // cache directory et ttl en option
- * >
- * > $rf->extract(URL); // max_items en option
- * >
- * > echo $rf->page->...
- * >
- * > echo $rf->page->all_items // array of Item
- *
  */
 class RFrance
 {
@@ -41,7 +32,7 @@ class RFrance
     /** @var array<string> $excluded_end_urls */
     private array $excluded_end_urls = [
         'podcasts',
-        'grille-programmes'
+        'grille-programmes',
     ];
 
     /**
@@ -74,16 +65,20 @@ class RFrance
      */
     private function getCrawler(string $url): Crawler
     {
-        if (!$this->isValidUrl($url)) {
-            throw new \InvalidArgumentException($this->error);
+        if (isset($this->crawler)) {
+            return $this->crawler;
+        } else {
+            if (!$this->isValidUrl($url)) {
+                throw new \InvalidArgumentException($this->error);
+            }
+            $html = $this->getHtml($url);
+            if ($html === false) {
+                $this->error = 'Le scraping a échoué : ' . $url;
+                throw new \Exception($this->error);
+            }
+            $this->html = $html;
+            return new Crawler($this->html);
         }
-        $html = $this->getHtml($url);
-        if ($html === false) {
-            $this->error = 'Le scraping a échoué : ' . $url;
-            throw new \Exception($this->error);
-        }
-        $this->html = $html;
-        return (isset($this->crawler)) ? $this->crawler : new Crawler($this->html);
     }
 
     /**
@@ -123,38 +118,6 @@ class RFrance
     }
 
     /**
-     * recherche (basique) d'un flus rss, on ne sait jamais...
-     *
-     * ex : \<link rel="alternate" title="À v ..." href="https://radiofran...0351.xml" type="application/rss+xml">
-     */
-    private function getRssUrl(): ?string
-    {
-        $crawler_rss = $this->crawler->filter('link[rel="alternate"]');
-        return ($crawler_rss->count() > 0) ? $crawler_rss->attr('href') : null;
-    }
-
-    /**
-      * Merge all <script type="application/ld+json"> in an array, return a special '@graph'
-      *
-      * @return array<mixed> The keys are the value of @type in @graph
-      */
-    private function extractGraphFromScriptsJson(): array
-    {
-        $scripts_json = $this->crawler->filter('script[type="application/ld+json"]')->extract(['_text']);
-
-        $all_scripts_decode = [];
-        foreach ($scripts_json as $script_json) {
-            $ar_decode = json_decode($script_json, true);
-            $all_scripts_decode = array_merge_recursive($all_scripts_decode, $ar_decode);
-        }
-        $ar_filter = array_filter($all_scripts_decode['@graph'], function ($v) {
-            return ($v['@type'] !== 'BreadcrumbList');
-        });
-        $ar_combine = array_combine(array_column($ar_filter, '@type'), $ar_filter);
-        return $ar_combine;
-    }
-
-    /**
      * parse, extract all good informations.
      *
      * @param int $max_items max number of items (approx.), -1 for all items
@@ -163,33 +126,32 @@ class RFrance
     public function extract(string $url, int $max_items = -1)
     {
         $this->crawler = $this->getCrawler($url);
-
-        $this->page = new Page($this->crawler);
-        $this->page->webpage_url = $url;
-
         $this->max_items = $max_items;
 
-        $this->page->rss_url = $this->getRssUrl();
+        $this->page = new Page();
+        $this->page->webpage_url = $url;
         $this->page->short_path = short_path($this->page->webpage_url);
 
-        // on récupère les <script type="application/ld+json">, on merge, on récupère @graph
-        $graph = $this->extractGraphFromScriptsJson();
+        $extractor = new Extractor($this->crawler, $this->html);
+        // un flux rss ?
+        $this->page->rss_url = $extractor->getRssUrl();
+        // on récupère les <script type="application/ld+json">
+        $graph = $extractor->getGraphFromScriptJson();
 
         // un seul épisode
         if (in_array('RadioEpisode', array_keys($graph))) {
-            $this->page->setPageRadioEpisode($graph);
-            $item = new Item();
-            $item->setItemFromGraph($this->page->webpage_url, $graph['RadioEpisode']);
+            $this->page = $extractor->setPageRadioEpisode($this->page);
+            $item = $extractor->setItemRadioEpisode(new Item());
             $this->page->all_items[] = $item;
             return true;
         }
 
         // cas 'WebPage', selon mainEntity@type :
         // - 'RadioSeries' c'est une émission de radio (liste épisodes ou de saison)
-        // - 'PodcastSeries' une liste d'épisode (genre 'série' ou podcast seul)
+        // - 'PodcastSeries' une liste d'épisode ('série' ou podcast seul)
         if (in_array('WebPage', array_keys($graph))) {
             if (isset($graph['WebPage']['mainEntity'])) {
-                $this->page->setPageSeries($graph);
+                $this->page = $extractor->setPageSeries($this->page);
                 return $this->getAllItemsFromSerie();
             } else {
                 $this->page->type = 'WebPage';

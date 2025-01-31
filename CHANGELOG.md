@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
+
+## 2.2.2 - 2025-01-31
+No BC
+### Fixed
+- Erreur si pas de date de publication dans la page web (série)
+### Add
+- throw une exception avant de scraper si l'url est invalide
+- tests invalid urls
+- tests un épisode
+- tests petite série (PodcastSeries)
+
 ## 2.2.1 - 2025-01-15
 ### Fixed
 - README.md

@@ -30,40 +30,21 @@ class Item
     public array $media = [];
 
     /*
-    Niveau encodage son:
+    Niveau encodage son, rangé selon mon classement du meilleure au moins bon :
     "{id:"28",name:"binaural",encoding:"AAC",bitrate:192,frequency:48,level:"Binaural -16LUFS"}"
     "{id:"25",name:"stereo",encoding:"AAC",bitrate:192,frequency:48,level:"-16LUFS (stéréo)"}"
     "{id:"16",name:"stereo",encoding:"AAC",bitrate:192,frequency:48,level:"-23LUFS (stéréo)"}"
     "{id:"29",name:"5.1",encoding:"AAC",bitrate:192,frequency:48,level:"5.1 -18LUFS"}"
+    "{id:"27",name:"stereo",encoding:"AAC",bitrate:192,frequency:48,level:"Stéréo -16LUFS (stéréo + compression “FINTER”)"}"
     "{id:"30",name:"binaural",encoding:"MP3",bitrate:192,frequency:48,level:"Binaural -16LUFS"}"
     "{id:"21",name:"stereo",encoding:"MP3",bitrate:128,frequency:44.1,level:"-15LUFS (stereo)"}"
+    "{id:"22",name:"stereo",encoding:"MP3",bitrate:128,frequency:44.1,level:"-16LUFS (stéréo + compression “FINTER”)"}"
     "null"
 
     '0' est la meilleure préférence, cad pour ['id' => '28']
+    rem : le 22 et 27 semblent plus souvent utilisés, à voir 26 jan. 2025
     */
-    public const PREFERENCE = ['28' => '0', '25' => '1', '16' => '2', '29' => '3', '30' => '4', '21' => '5'];
-
-    /**
-     * Set Item from the good graph
-     *
-     * @param string $webpage_url
-     * @param mixed[] $episode_graphe
-     */
-    public function setItemFromGraph(string $webpage_url, array $episode_graphe): void
-    {
-        $this->webpage_url = $webpage_url;
-        $this->title = html_entity_decode($episode_graphe['name']);
-        $this->id = md5($this->title);
-        $this->description = html_entity_decode($episode_graphe['description']);
-        $this->timestamp = strtotime($episode_graphe['dateCreated']);
-        $this->thumbnail = $episode_graphe['image']['url'];
-        $this->playlist = $episode_graphe['partOfSeries']['name'];
-        if (isset($episode_graphe['mainEntity'])) {
-            $this->url = $episode_graphe['mainEntity']['contentUrl'];
-            $this->mimetype = $episode_graphe['mainEntity']['encodingFormat'];
-            $this->duration = duration_ISO_to_timestamp($episode_graphe['mainEntity']['duration']);
-        }
-    }
+    public const PREFERENCE = ['28' => '0', '25' => '1', '16' => '2', '29' => '3', '27' => '4', '30' => '5', '21' => '6', '22' => '7'];
 
     /**
      * @param string $page_webpage_url
@@ -86,6 +67,7 @@ class Item
                 'preset' => $medium['preset'],
                 'mimetype' => get_audio_mimetype($medium['url'])
             ];
+            // on ajoute une 'preference' pour selon le type de preset
             if (!empty($medium['preset']) || $medium['preset'] == 'null') {
                 if (key_exists($medium['preset']['id'], Item::PREFERENCE)) {
                     $this->media[$k]['preset']['preference'] = Item::PREFERENCE[$medium['preset']['id']];
