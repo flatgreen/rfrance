@@ -86,7 +86,7 @@ class RFrance
      *
      * @return string|false content body
      */
-    private function getHtml(string $url)
+    public function getHtml(string $url)
     {
         /** @var string|false $html */
         $html = $this->cache->get(md5($url), function () use ($url) {

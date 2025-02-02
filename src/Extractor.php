@@ -100,6 +100,33 @@ class Extractor
             $item->mimetype = $episode_graphe['mainEntity']['encodingFormat'];
             $item->duration = duration_ISO_to_timestamp($episode_graphe['mainEntity']['duration']);
         }
+
+        // on test si plusieurs media disponibles
+        $preg = preg_match_all('/manifestations:(\[.*?\])/', $this->html, $matches);
+        if ($preg !== 0) {
+            $itema = get_itema($item->url);
+            if ($itema !== null) {
+                // tri des réponses
+                $manifestation_audio = [];
+                foreach($matches[1] as $matche) {
+                    if (strpos($matche, $itema) !== false) {
+                        try {
+                            $decode = json5_decode($matche, true);
+                        } catch (\Throwable $th) {
+                        }
+                        if (isset($decode)) {
+                            $manifestation_audio = array_merge($manifestation_audio, $decode);
+                        }
+                    }
+                }
+                // ss doublons sur id
+                $manifestation_audio_final = array_values(array_column($manifestation_audio, null, 'id'));
+                $item->setMediaFromManifestations($manifestation_audio_final);
+            }
+        }
+
+
+
         return $item;
     }
 

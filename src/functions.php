@@ -127,3 +127,19 @@ function short_path(string $url): string
 {
     return basename((string)parse_url($url, PHP_URL_PATH));
 }
+
+/**
+ * Extract ITEMA id from url (media)
+ *
+ * @param string $media_url
+ * @return string|null
+ */
+function get_itema($media_url)
+{
+    $reg = preg_match('/-ITEMA_(\d{8}-.{15})/', $media_url, $matches);
+    if ($reg == 1 && isset($matches[1])) {
+        return $matches[1];
+    } else {
+        return null;
+    }
+}

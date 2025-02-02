@@ -41,10 +41,10 @@ class Item
     "{id:"22",name:"stereo",encoding:"MP3",bitrate:128,frequency:44.1,level:"-16LUFS (stéréo + compression “FINTER”)"}"
     "null"
 
-    '0' est la meilleure préférence, cad pour ['id' => '28']
-    rem : le 22 et 27 semblent plus souvent utilisés, à voir 26 jan. 2025
+    '0' est la meilleure préférence, cad pour 'id' : '28'
+    rem : au 26 jan. 2025, le 22 et 27 semblent plus souvent utilisés
     */
-    public const PREFERENCE = ['28' => '0', '25' => '1', '16' => '2', '29' => '3', '27' => '4', '30' => '5', '21' => '6', '22' => '7'];
+    public const PREFERENCE = ['28' => 0, '25' => 1, '16' => 2, '29' => 3, '27' => 4, '30' => 5, '21' => 6, '22' => 7];
 
     /**
      * @param string $page_webpage_url
@@ -61,7 +61,19 @@ class Item
         $this->webpage_url = UriResolver::resolve($player_info['link'], $page_webpage_url);
         $this->duration = (int) $player_info['manifestations'][0]['duration'];
         $this->timestamp = (int) $player_info['manifestations'][0]['created'];
-        foreach($player_info['manifestations'] as $k => $medium) {
+        // media, url et mimetype
+        $this->setMediaFromManifestations($player_info['manifestations']);
+
+    }
+
+    /**
+     * Only for media information
+     *
+     * @param mixed[] $manifestations
+     */
+    public function setMediaFromManifestations(array $manifestations): void
+    {
+        foreach($manifestations as $k => $medium) {
             $this->media[] = [
                 'url' => $medium['url'],
                 'preset' => $medium['preset'],

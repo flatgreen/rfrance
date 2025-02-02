@@ -60,7 +60,7 @@ final class RFranceTest extends TestCase
         assertSame('En quête de politique', $item->playlist);
         assertSame('https://www.radiofrance.fr/s3/cruiser-production-eu3/2024/10/75a77277-5c1c-43ea-9053-fe9408c0bd58/640x340_sc_horizon-le-mussolinisme.jpg', $item->thumbnail);
         assertStringStartsWith('https://media.radiofrance-podcast.net/podcast09/23497-31.10.2024-ITEMA_23911275-2024F49012S0308', $item->url);
-        assertEmpty($item->media);
+        assertCount(2, $item->media);
 
     }
 

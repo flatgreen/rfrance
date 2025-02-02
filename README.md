@@ -38,6 +38,8 @@ if (empty($rf->error)){
 }
 ```
 
+An Item always return an (audio media) url. This is the `best` the class can find (see Item.php for information).
+
 Two output helpers :
 
 ```php

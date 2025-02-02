@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
+- Petit BC avec "émission" pour "playlist" dans "Item"
+- WiP pour Item en slt DTO
+
+## 2.3 - 2025-02-02
+No BC
+### Add
+- extrait tous les média disponibles, même pour une seule émission
+- `Best` url explain in readme
+### Change
+- "Page" est maintenant seulement un DTO
 
 ## 2.2.2 - 2025-01-31
 No BC
