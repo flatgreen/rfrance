@@ -143,3 +143,19 @@ function get_itema($media_url)
         return null;
     }
 }
+
+/**
+ * Convert object to array
+ *
+ * @author https://stackoverflow.com/a/2476954/2686054
+ * @param mixed $object
+ * @return mixed
+ */
+function object_to_array($object)
+{
+    if(!is_object($object) && !is_array($object)) {
+        return $object;
+    }
+
+    return array_map(__NAMESPACE__ . '\object_to_array', (array) $object);
+}

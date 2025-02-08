@@ -57,7 +57,7 @@ final class RFranceTest extends TestCase
         assertSame('4f8ab77ee4205f8ff5e851966812efb6', $item->id);
         assertSame('audio/mp4', $item->mimetype);
         assertSame(2949, $item->duration);
-        assertSame('En quête de politique', $item->playlist);
+        assertSame('En quête de politique', $item->emission);
         assertSame('https://www.radiofrance.fr/s3/cruiser-production-eu3/2024/10/75a77277-5c1c-43ea-9053-fe9408c0bd58/640x340_sc_horizon-le-mussolinisme.jpg', $item->thumbnail);
         assertStringStartsWith('https://media.radiofrance-podcast.net/podcast09/23497-31.10.2024-ITEMA_23911275-2024F49012S0308', $item->url);
         assertCount(2, $item->media);
@@ -98,11 +98,10 @@ final class RFranceTest extends TestCase
         assertSame('ae0c4daa-2cb4-4802-a414-f4d01c7c7e2b', $item->id);
         assertSame('audio/mpeg', $item->mimetype);
         assertSame(2096, $item->duration);
-        assertSame('Fictions / Théâtre et Cie', $item->playlist);
+        assertSame('Fictions / Théâtre et Cie', $item->emission);
         assertSame('https://www.radiofrance.fr/s3/cruiser-production-eu3/2025/01/7db253a3-7794-4d74-ace4-6737452c3915/200x200_sc_foret.jpg', $item->thumbnail);
         assertSame('https://media.radiofrance-podcast.net/podcast09/24824-26.01.2025-ITEMA_23989447-2024C11356E0038-ITE_00142028_RSCE-21.mp3', $item->url);
         assertCount(1, $item->media);
     }
-
 
 }

@@ -23,11 +23,13 @@ use Flatgreen\RFrance\RFrance;
 Instantiate the class, with an URL page
 
 ```php
-$rf = new RFrance();
-// optional in constructor, add cache directory and cache duration for page, 1 day by default.
+$rf = new RFrance(); // optional in constructor, add cache directory and cache duration for page, 1 day by default.
 
-$rf->extract(URL);
-// optional: set a (approx.) limit $max_items (default: -1, all items)
+try {
+    $rf->extract(URL); // optional: set a (approx.) limit $max_items (default: -1, all items)
+} catch (\Throwable $th) {
+    //throw $th;
+}
 ```
 
 Read the informations
@@ -40,9 +42,12 @@ if (empty($rf->error)){
 
 An Item always return an (audio media) url. This is the `best` the class can find (see Item.php for information).
 
-Two output helpers :
+Three output helpers :
 
 ```php
+// to array
+echo $FC->toArray();
+
 // RSS 2.0
 header("Content-Type: text/xml; charset=UTF-8");
 echo $FC->toRss();

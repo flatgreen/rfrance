@@ -5,8 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
-- Petit BC avec "émission" pour "playlist" dans "Item"
-- WiP pour Item en slt DTO
+
+## 2.4 - 2025-02-08
+### Changed
+- Item (et Page) est un simple DTO
+- rfrance::toInfoJson() est plus proche des *.info.json
+- Item::playlist est remplacé par Item::emission
+
+### Add
+- test sur une serie (que le premier épisode)
+- ajout du helper rfrance::toArray()
 
 ## 2.3 - 2025-02-02
 No BC

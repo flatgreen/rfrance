@@ -8,8 +8,6 @@
 
 namespace Flatgreen\RFrance;
 
-use Symfony\Component\DomCrawler\UriResolver;
-
 class Item
 {
     public string $webpage_url;
@@ -20,8 +18,7 @@ class Item
     public string $id;
     public string $mimetype;
     public int $duration;
-    /** @var string $playlist maybe partOfSeries */
-    public string $playlist;
+    public string $emission;
     /** @var string $thumbnail the url (src) of the image */
     public ?string $thumbnail = null;
     /** @var string $url url of the media */
@@ -30,72 +27,21 @@ class Item
     public array $media = [];
 
     /*
-    Niveau encodage son, rangé selon mon classement du meilleure au moins bon :
-    "{id:"28",name:"binaural",encoding:"AAC",bitrate:192,frequency:48,level:"Binaural -16LUFS"}"
-    "{id:"25",name:"stereo",encoding:"AAC",bitrate:192,frequency:48,level:"-16LUFS (stéréo)"}"
-    "{id:"16",name:"stereo",encoding:"AAC",bitrate:192,frequency:48,level:"-23LUFS (stéréo)"}"
-    "{id:"29",name:"5.1",encoding:"AAC",bitrate:192,frequency:48,level:"5.1 -18LUFS"}"
-    "{id:"27",name:"stereo",encoding:"AAC",bitrate:192,frequency:48,level:"Stéréo -16LUFS (stéréo + compression “FINTER”)"}"
-    "{id:"30",name:"binaural",encoding:"MP3",bitrate:192,frequency:48,level:"Binaural -16LUFS"}"
-    "{id:"21",name:"stereo",encoding:"MP3",bitrate:128,frequency:44.1,level:"-15LUFS (stereo)"}"
-    "{id:"22",name:"stereo",encoding:"MP3",bitrate:128,frequency:44.1,level:"-16LUFS (stéréo + compression “FINTER”)"}"
-    "null"
+    Niveau encodage son, rangé selon mon classement du meilleur au moins bon
+    peut être aussi : "null"
 
-    '0' est la meilleure préférence, cad pour 'id' : '28'
+    0 est donc la meilleure préférence, cad pour 'id' : '28'
     rem : au 26 jan. 2025, le 22 et 27 semblent plus souvent utilisés
     */
-    public const PREFERENCE = ['28' => 0, '25' => 1, '16' => 2, '29' => 3, '27' => 4, '30' => 5, '21' => 6, '22' => 7];
+    public const PREFERENCE = [
+        '28' => 0, // "{id:"28",name:"binaural",encoding:"AAC",bitrate:192,frequency:48,level:"Binaural -16LUFS"}"
+        '25' => 1, // "{id:"25",name:"stereo",encoding:"AAC",bitrate:192,frequency:48,level:"-16LUFS (stéréo)"}"
+        '16' => 2, // "{id:"16",name:"stereo",encoding:"AAC",bitrate:192,frequency:48,level:"-23LUFS (stéréo)"}"
+        '29' => 3, // "{id:"29",name:"5.1",encoding:"AAC",bitrate:192,frequency:48,level:"5.1 -18LUFS"}"
+        '27' => 4, // "{id:"27",name:"stereo",encoding:"AAC",bitrate:192,frequency:48,level:"Stéréo -16LUFS (stéréo + compression “FINTER”)"}"
+        '30' => 5, // "{id:"30",name:"binaural",encoding:"MP3",bitrate:192,frequency:48,level:"Binaural -16LUFS"}"
+        '21' => 6, // "{id:"21",name:"stereo",encoding:"MP3",bitrate:128,frequency:44.1,level:"-15LUFS (stereo)"}"
+        '22' => 7  // "{id:"22",name:"stereo",encoding:"MP3",bitrate:128,frequency:44.1,level:"-16LUFS (stéréo + compression “FINTER”)"}"
+    ];
 
-    /**
-     * @param string $page_webpage_url
-     * @param mixed[] $player_info
-     */
-    public function setItemFromPlayerInfo(string $page_webpage_url, array $player_info): void
-    {
-
-        $this->title = $player_info['title'];
-        $this->description = trim($player_info['description']);
-        $this->id = $player_info['id'];
-        $this->playlist = $player_info['playerInfo']['playerMetadata']['firstLine'] ?? '';
-        $this->thumbnail = $player_info['visual']['src'];
-        $this->webpage_url = UriResolver::resolve($player_info['link'], $page_webpage_url);
-        $this->duration = (int) $player_info['manifestations'][0]['duration'];
-        $this->timestamp = (int) $player_info['manifestations'][0]['created'];
-        // media, url et mimetype
-        $this->setMediaFromManifestations($player_info['manifestations']);
-
-    }
-
-    /**
-     * Only for media information
-     *
-     * @param mixed[] $manifestations
-     */
-    public function setMediaFromManifestations(array $manifestations): void
-    {
-        foreach($manifestations as $k => $medium) {
-            $this->media[] = [
-                'url' => $medium['url'],
-                'preset' => $medium['preset'],
-                'mimetype' => get_audio_mimetype($medium['url'])
-            ];
-            // on ajoute une 'preference' pour selon le type de preset
-            if (!empty($medium['preset']) || $medium['preset'] == 'null') {
-                if (key_exists($medium['preset']['id'], Item::PREFERENCE)) {
-                    $this->media[$k]['preset']['preference'] = Item::PREFERENCE[$medium['preset']['id']];
-                }
-            }
-        }
-        // range les média par préférence (voir Item)
-        usort($this->media, function ($a, $b) {
-            if (isset($a['preset']['preference']) && isset($b['preset']['preference'])) {
-                return $a['preset']['preference'] <=> $b['preset']['preference'];
-            } else {
-                return 0;
-            }
-        });
-        // pour 'url' on prend le premier
-        $this->url = $this->media[0]['url'];
-        $this->mimetype = $this->media[0]['mimetype'];
-    }
 }
