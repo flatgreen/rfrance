@@ -611,7 +611,7 @@ class RFrance
         $json['_type'] = 'playlist';
         foreach($this->page->all_items as $entrie) {
             $new = object_to_array($entrie);
-            $new['channel'] = $new['emission'];
+            $new['playlist'] = $new['emission'];
             $json['entries'][] = $new;
         }
         $json_encode = json_encode($json);
