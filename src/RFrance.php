@@ -71,6 +71,7 @@ class RFrance
     private function getCrawler(string $url): Crawler
     {
         if (isset($this->crawler)) {
+            $this->html = $this->crawler->html();
             return $this->crawler;
         } else {
             if (!$this->isValidUrl($url)) {
@@ -618,6 +619,7 @@ class RFrance
         return ($json_encode === false) ? '' : $json_encode;
     }
 
+    /** @return mixed[] */
     public function toArray(): array
     {
         return object_to_array($this->page);

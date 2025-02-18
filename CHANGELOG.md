@@ -6,7 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-## 2.4.1 - 2025-05-13
+## 2.4.2 - 2025-02-18
+## Fixed
+- pas de html si le crawler est fourni
+
+## 2.4.1 - 2025-02-13
 ### Changed
 - *.info.json 'playlist' pour 'channel' contient le nom de l'émission
 
