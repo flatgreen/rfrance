@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 2.4.3 - 2025-02-28
+### Changed
+- helper avec *.info.json revu pour 'playlist' et 'channel'
+### Added
+- extrait les "encarts" si présents dans la page d'un "RadioEpisode", intégrés dans "all_items".
+
 ## 2.4.2 - 2025-02-18
 ## Fixed
 - pas de html si le crawler est fourni

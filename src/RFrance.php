@@ -172,6 +172,7 @@ class RFrance
             $this->page = $this->setPageRadioEpisode($this->page);
             $item = $this->setItemRadioEpisode(new Item());
             $this->page->all_items[] = $item;
+            $this->setItemsEncartsInRadioEpisode();
             return true;
         }
 
@@ -181,7 +182,7 @@ class RFrance
         if (in_array('WebPage', array_keys($graph))) {
             if (isset($graph['WebPage']['mainEntity'])) {
                 $this->page = $this->setPageSeries($this->page);
-                return $this->getAllItemsFromSerie();
+                return $this->setAllItemsFromSerie();
             } else {
                 $this->page->type = 'WebPage';
                 $this->page->title = $graph['WebPage']['name'];
@@ -281,6 +282,29 @@ class RFrance
         }
 
         return $item;
+    }
+
+    private function setItemsEncartsInRadioEpisode(): void
+    {
+        $preg = preg_match_all('/{type:"audio",data:({.*?})/', $this->html, $matches);
+        if ($preg !== 0 or $preg !== false) {
+            foreach($matches[1] as $matche) {
+                try {
+                    $decode = json5_decode($matche, true);
+                } catch (\Throwable $th) {
+                }
+                if (isset($decode)) {
+                    $item = new Item();
+                    $item->id = $decode['id'];
+                    $item->title = $decode['title'];
+                    $item->url = $decode['url'];
+                    $item->duration = $decode['duration'];
+                    $item->webpage_url = $this->page->webpage_url;
+                    $item->thumbnail = ($this->page->image->src) ?? '';
+                    $this->page->all_items[] = $item;
+                }
+            }
+        }
     }
 
     /**
@@ -462,7 +486,7 @@ class RFrance
     /**
      * Populate $all_items[] from serie page
      */
-    private function getAllItemsFromSerie(): bool
+    private function setAllItemsFromSerie(): bool
     {
         $num_page = 1;
         $a_next = '';
@@ -599,12 +623,15 @@ class RFrance
             $the_item = $this->page->all_items[0];
             $json = json_encode($the_item);
             $json = ($json === false) ? '' : $json;
-            return str_replace('emission', 'channel', $json);
+            $json = str_replace('emission', 'playlist', $json);
+            return str_replace('station', 'channel', $json);
         }
 
         $json = [];
         $json['title'] = ($this->page->type == 'RadioSeries') ? $this->page->emission : $this->page->title;
         $json['description'] = $this->page->description;
+        $json['channel'] = $this->page->station;
+        $json['playlist'] = $this->page->emission;
         $json['channel_url'] = $this->page->webpage_url;
         $json['webpage_url'] = $this->page->webpage_url;
         $json['uploader'] = $this->page->station . ' - ' . $this->page->emission;
@@ -612,7 +639,7 @@ class RFrance
         $json['_type'] = 'playlist';
         foreach($this->page->all_items as $entrie) {
             $new = object_to_array($entrie);
-            $new['playlist'] = $new['emission'];
+            $new['playlist'] = ($new['emission']) ?? '';
             $json['entries'][] = $new;
         }
         $json_encode = json_encode($json);
