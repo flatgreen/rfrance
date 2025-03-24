@@ -191,7 +191,7 @@ class RFrance
             }
         }
 
-        // cas 'NewsArticle' (dans $type) seul, c'est un article de blabla
+        // cas 'NewsArticle', c'est un article de blabla // TODO voir si NewsArticle seul ou pas
         // il peut y avoir des encarts, on essaie
         if (in_array('NewsArticle', array_keys($graph))) {
             $graph = $graph['NewsArticle'];
@@ -202,12 +202,10 @@ class RFrance
             $this->page->type = 'NewsArticle';
             $this->page->image = $this->extractImage($graph);
             $this->setItemsEncartsInRadioEpisode();
-            if (empty($this->page->all_items)) {
-                $this->error = 'Pas de donnée extraite (pas d\'audio ?)';
-            }
             return true;
         }
 
+        $this->error = 'Pas de donnée extraite (pas d\'audio ?)';
         return false;
     }
 
@@ -314,10 +312,13 @@ class RFrance
                 $item = new Item();
                 $item->id = $decode['id'];
                 $item->title = $decode['title'];
+                $item->description = $decode['title']; // pas de description dans les encarts
                 $item->url = $decode['url'];
                 $item->duration = $decode['duration'];
                 $item->webpage_url = $this->page->webpage_url;
                 $item->thumbnail = ($this->page->image->src) ?? '';
+                $item->timestamp = $this->page->timestamp;
+                $item->mimetype = get_audio_mimetype($item->url);
                 $this->page->all_items[] = $item;
             }
         }
@@ -575,7 +576,7 @@ class RFrance
     }
 
     /**
-     * From all data create a classic RSS file
+     * From all data create a classic RSS file, always return information even no item
      *
      * @return string the feed string
      */
@@ -593,7 +594,7 @@ class RFrance
         $rssfeed .= '<lastBuildDate>' . date(DATE_RSS) . '</lastBuildDate>' . "\n";
         $rssfeed .= '<pubDate>' . date(DATE_RSS, $this->page->timestamp) . '</pubDate>' . "\n";
         $rssfeed .= '<language>fr</language>' . "\n";
-        if (!empty((array)$this->page->image)) {
+        if (isset($this->page->image) && !empty((array)$this->page->image)) {
             $rssfeed .= '<image>' . "\n";
             $rssfeed .= "\t" . '<url>' . $this->page->image->src . '</url>' . "\n";
             $rssfeed .= "\t" . '<title>' . hexa_encoding($this->page->title) . '</title>' . "\n";

@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 2.4.5 - 2025-03-24
+### Added
+- Les "encarts" ont toutes les informations pour être dans un flux rss
+- meilleur "page" pour le type "NewsArticle"
+- un peu du readme
+### Changed
+- php >=8.0 à >=8.1
+
+
 ## 2.4.4 - 2025-03-24
 ### Fixed
 - les "encarts" peuvent être extraits dans des pages sans emission
