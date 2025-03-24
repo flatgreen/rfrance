@@ -4,3 +4,4 @@ vendor/
 .vscode/
 doc.txt
 index.php
+composer.lock

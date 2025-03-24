@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 2.4.4 - 2025-03-24
+### Fixed
+- les "encarts" peuvent être extraits dans des pages sans emission
+### Added
+- les pages d'article seule renvoie des informations
+
 ## 2.4.3 - 2025-02-28
 ### Changed
 - helper avec *.info.json revu pour 'playlist' et 'channel'

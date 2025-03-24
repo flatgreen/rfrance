@@ -191,8 +191,23 @@ class RFrance
             }
         }
 
-        // pas recherché : 'NewsArticle' (dans $type) seul, c'est un article de blabla
-        $this->error = 'Pas de donnée extraite (pas d\'audio ?)';
+        // cas 'NewsArticle' (dans $type) seul, c'est un article de blabla
+        // il peut y avoir des encarts, on essaie
+        if (in_array('NewsArticle', array_keys($graph))) {
+            $graph = $graph['NewsArticle'];
+            $this->page->title = $graph['headline'];
+            $this->page->description = $graph['description'];
+            $this->page->timestamp = strtotime($graph['datePublished']);
+            $this->page->station = $graph['publisher']['name'];
+            $this->page->type = 'NewsArticle';
+            $this->page->image = $this->extractImage($graph);
+            $this->setItemsEncartsInRadioEpisode();
+            if (empty($this->page->all_items)) {
+                $this->error = 'Pas de donnée extraite (pas d\'audio ?)';
+            }
+            return true;
+        }
+
         return false;
     }
 
@@ -287,28 +302,29 @@ class RFrance
     private function setItemsEncartsInRadioEpisode(): void
     {
         $preg = preg_match_all('/{type:"audio",data:({.*?})/', $this->html, $matches);
-        if ($preg !== 0 or $preg !== false) {
-            foreach($matches[1] as $matche) {
-                try {
-                    $decode = json5_decode($matche, true);
-                } catch (\Throwable $th) {
-                }
-                if (isset($decode)) {
-                    $item = new Item();
-                    $item->id = $decode['id'];
-                    $item->title = $decode['title'];
-                    $item->url = $decode['url'];
-                    $item->duration = $decode['duration'];
-                    $item->webpage_url = $this->page->webpage_url;
-                    $item->thumbnail = ($this->page->image->src) ?? '';
-                    $this->page->all_items[] = $item;
-                }
+        if ($preg === 0 || $preg === false) {
+            return;
+        }
+        foreach($matches[1] as $matche) {
+            try {
+                $decode = json5_decode($matche, true);
+            } catch (\Throwable $th) {
+            }
+            if (isset($decode)) {
+                $item = new Item();
+                $item->id = $decode['id'];
+                $item->title = $decode['title'];
+                $item->url = $decode['url'];
+                $item->duration = $decode['duration'];
+                $item->webpage_url = $this->page->webpage_url;
+                $item->thumbnail = ($this->page->image->src) ?? '';
+                $this->page->all_items[] = $item;
             }
         }
     }
 
     /**
-     * Use  the graph to find an image in meta tags
+     * Use the graph to set an image object
      *
      * image dans les @graph depuis nov. 2024 et pas/plus dans les meta pour les series
      *
