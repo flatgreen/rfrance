@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## 2.4.6 - 2025-06-08
+### Fixed
+- retrouve une bonne url (new API) pour l'image d'un item d'une série
+- il manquait 'image' dans le retour en json
+
 ## 2.4.5 - 2025-03-24
 ### Added
 - Les "encarts" ont toutes les informations pour être dans un flux rss

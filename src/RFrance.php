@@ -389,9 +389,7 @@ class RFrance
         $page->title = html_entity_decode($graph_web_page['mainEntity']['name']);
         // TODO in big info ?
         // 'emission' pour PodcastSeries est trouvée dans getAllItemsFromSerie
-        if ($page->type == 'RadioSeries') {
-            $page->emission = $page->title;
-        }
+        $page->emission = ($page->type == 'RadioSeries') ? $page->title : '';
         $page->description = html_entity_decode($graph_web_page['mainEntity']['abstract'] ?? '');
         $page->image = $this->extractImage($graph_web_page['mainEntity']);
         $filter_publish = $this->crawler->filter('meta[property="article:published_time"]');
@@ -491,7 +489,7 @@ class RFrance
         $item->description = trim($player_info['description']);
         $item->id = $player_info['id'];
         $item->emission = $player_info['playerInfo']['playerMetadata']['firstLine'] ?? '';
-        $item->thumbnail = $player_info['visual']['src'];
+        $item->thumbnail = $player_info['visual']['src'] . '/' . $player_info['visual']['preset'];
         $item->webpage_url = UriResolver::resolve($player_info['link'], $webpage_url);
         $item->duration = (int) $player_info['manifestations'][0]['duration'];
         $item->timestamp = (int) $player_info['manifestations'][0]['created'];
@@ -652,6 +650,9 @@ class RFrance
         $json['channel_url'] = $this->page->webpage_url;
         $json['webpage_url'] = $this->page->webpage_url;
         $json['uploader'] = $this->page->station . ' - ' . $this->page->emission;
+        if (isset($this->page->image) && !empty((array)$this->page->image)) {
+            $json['image'] = (array)$this->page->image;
+        }
         $json['playlist_count'] = $nb_items;
         $json['_type'] = 'playlist';
         foreach($this->page->all_items as $entrie) {

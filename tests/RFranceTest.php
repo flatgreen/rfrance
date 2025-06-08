@@ -4,7 +4,6 @@ use Flatgreen\RFrance\RFrance;
 use PHPUnit\Framework\TestCase;
 
 use function PHPUnit\Framework\assertCount;
-use function PHPUnit\Framework\assertEmpty;
 use function PHPUnit\Framework\assertNull;
 use function PHPUnit\Framework\assertSame;
 use function PHPUnit\Framework\assertStringStartsWith;
