@@ -29,10 +29,10 @@ class RFrance
     public Page $page;
     private string $html;
     /** @var mixed[] $graph */
-    private array $graph;
+    private array $graph = [];
     public string $error = '';
     private int $max_items;
-    private string $webpage_url;
+    private string $webpage_url = '';
 
     /** @var array<string> $excluded_end_urls */
     private array $excluded_end_urls = [
@@ -53,10 +53,11 @@ class RFrance
      * If we have already a Symfony\Component\DomCrawler\Crawler,
      * we can use it.
      */
-    public function setCrawler(Crawler $crawler): void
+    public function setCrawler(Crawler $crawler, string $webpage_url = ''): void
     {
         if ($crawler instanceof Crawler) {
             $this->crawler = $crawler;
+            $this->webpage_url = $webpage_url;
         }
     }
 
@@ -70,7 +71,7 @@ class RFrance
      */
     private function getCrawler(string $url): Crawler
     {
-        if (isset($this->crawler)) {
+        if (isset($this->crawler) && $url == $this->webpage_url) {
             $this->html = $this->crawler->html();
             return $this->crawler;
         } else {

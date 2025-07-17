@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
+## 2.4.7 - 2025-07-17
+### Fixed
+- Si un Crawler est existe, vérifie que l'url de l'extraction est celle du crawler
+- maj test (maj de v2.4.6)
 
 ## 2.4.6 - 2025-06-08
 ### Fixed

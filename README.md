@@ -36,7 +36,7 @@ Read the informations
 ```php
 if (empty($rf->error)){
     $title = $rf->page->title;
-    $all_items = $rf->all_items; // array of Item
+    $all_items = $rf->page->all_items; // array of Item
     ...
 }
 ```

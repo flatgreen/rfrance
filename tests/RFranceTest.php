@@ -98,7 +98,7 @@ final class RFranceTest extends TestCase
         assertSame('audio/mpeg', $item->mimetype);
         assertSame(2096, $item->duration);
         assertSame('Fictions / Théâtre et Cie', $item->emission);
-        assertSame('https://www.radiofrance.fr/s3/cruiser-production-eu3/2025/01/7db253a3-7794-4d74-ace4-6737452c3915/200x200_sc_foret.jpg', $item->thumbnail);
+        assertSame('https://www.radiofrance.fr/pikapi/images/7db253a3-7794-4d74-ace4-6737452c3915/raw', $item->thumbnail);
         assertSame('https://media.radiofrance-podcast.net/podcast09/24824-26.01.2025-ITEMA_23989447-2024C11356E0038-ITE_00142028_RSCE-21.mp3', $item->url);
         assertCount(1, $item->media);
     }
