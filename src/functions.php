@@ -8,6 +8,8 @@
 
 namespace Flatgreen\RFrance;
 
+use DOMDocument;
+
 /**
  * from 'P0Y0M0DT0H54M38S' to second
  *
@@ -158,4 +160,25 @@ function object_to_array($object)
     }
 
     return array_map(__NAMESPACE__ . '\object_to_array', (array) $object);
+}
+
+/**
+ * Specific search function, with tag with attribute and attribute value
+ *
+ * @param \DOMDocument $dom
+ * @param string $tag
+ * @param string $attr
+ * @param string $attr_val
+ * @return array<\DOMElement>
+ */
+function find_in_dom(\DOMDocument $dom, string $tag, string $attr, string $attr_val)
+{
+    $ret = [];
+    $all_tag_itels = $dom->getElementsByTagName($tag);
+    foreach($all_tag_itels as $item) {
+        if ($item->hasAttribute($attr) && $item->getAttribute($attr) == $attr_val) {
+            $ret[] = $item;
+        }
+    }
+    return $ret;
 }

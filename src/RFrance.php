@@ -10,9 +10,8 @@ declare(strict_types=1);
 
 namespace Flatgreen\RFrance;
 
+use DOMDocument;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
-use Symfony\Component\DomCrawler\Crawler;
-use Symfony\Component\DomCrawler\UriResolver;
 use stdClass;
 
 /**
@@ -23,13 +22,11 @@ class RFrance
     public const RADIOFRANCE_HOST = 'www.radiofrance.fr';
     private const USER_AGENT = 'User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/124.0';
 
-    private Crawler $crawler;
     private FilesystemAdapter $cache;
+    private DOMDocument $dom;
 
     public Page $page;
-    private string $html;
-    /** @var mixed[] $graph */
-    private array $graph = [];
+    private string $html = '';
     public string $error = '';
     private int $max_items;
     private string $webpage_url = '';
@@ -50,42 +47,11 @@ class RFrance
     }
 
     /**
-     * If we have already a Symfony\Component\DomCrawler\Crawler,
-     * we can use it.
+     * If we have already HTML string, we can use it.
      */
-    public function setCrawler(Crawler $crawler, string $webpage_url = ''): void
+    public function setHtml(string $html): void
     {
-        if ($crawler instanceof Crawler) {
-            $this->crawler = $crawler;
-            $this->webpage_url = $webpage_url;
-        }
-    }
-
-    /**
-     * From the actual webpage_url create|set a Crawler and html
-     *
-     * @param string $url
-     * @throws \Exception (http)
-     * @throws \InvalidArgumentException
-     * @return Crawler
-     */
-    private function getCrawler(string $url): Crawler
-    {
-        if (isset($this->crawler) && $url == $this->webpage_url) {
-            $this->html = $this->crawler->html();
-            return $this->crawler;
-        } else {
-            if (!$this->isValidUrl($url)) {
-                throw new \InvalidArgumentException($this->error);
-            }
-            $html = $this->getHtml($url);
-            if ($html === false) {
-                $this->error = 'Le scraping a échoué : ' . $url;
-                throw new \Exception($this->error);
-            }
-            $this->html = $html;
-            return new Crawler($this->html);
-        }
+        $this->html = $html;
     }
 
     /**
@@ -124,38 +90,70 @@ class RFrance
         return true;
     }
 
-
     /**
-      * Merge all \<script type="application/ld+json"> in an array, return a special '@graph'
+      * Merge all <script type="application/ld+json"> in an array, return a special '@graph'
       *
       * @return array<mixed> The keys are the value of @type in @graph
       */
     private function getGraphFromScriptJson(): array
     {
-        $scripts_json = $this->crawler->filter('script[type="application/ld+json"]')->extract(['_text']);
-
+        $elements = find_in_dom($this->dom, 'script', 'type', 'application/ld+json');
         $all_scripts_decode = [];
-        foreach ($scripts_json as $script_json) {
-            $ar_decode = json_decode($script_json, true);
+        foreach($elements as $element) {
+            $ar_decode = json_decode($element->textContent, true);
             $all_scripts_decode = array_merge_recursive($all_scripts_decode, $ar_decode);
         }
         $ar_filter = array_filter($all_scripts_decode['@graph'], function ($v) {
             return ($v['@type'] !== 'BreadcrumbList');
         });
         $ar_combine = array_combine(array_column($ar_filter, '@type'), $ar_filter);
-        return $this->graph = $ar_combine;
-
+        return $ar_combine;
     }
 
     /**
      * parse, extract all good informations.
      *
+     * @param string $url
      * @param int $max_items max number of items (approx.), -1 for all items
+     * @throws \InvalidArgumentException
+     * @throws \Exception (http)
      * @return bool
      */
     public function extract(string $url, int $max_items = -1)
     {
-        $this->crawler = $this->getCrawler($url);
+        $ret = $this->realExtract($url, $max_items);
+        unset($this->html);
+        return $ret;
+    }
+
+    /**
+     * parse, extract all good informations.
+     *
+     * @param string $url
+     * @param int $max_items max number of items (approx.), -1 for all items
+     * @throws \InvalidArgumentException
+     * @throws \Exception (http)
+     * @return bool
+     */
+    private function realExtract(string $url, int $max_items = -1)
+    {
+        if (!$this->isValidUrl($url)) {
+            throw new \InvalidArgumentException($this->error);
+        }
+
+        if (empty($this->html)) {
+            $html = $this->getHtml($url);
+            if ($html === false) {
+                $this->error = 'Le scraping a échoué : ' . $url;
+                throw new \Exception($this->error);
+            }
+            $this->html = $html;
+        }
+
+        libxml_use_internal_errors(true);
+        $this->dom = new DOMDocument();
+        $this->dom->loadHTML($this->html);
+
         $this->max_items = $max_items;
         $this->webpage_url = $url;
 
@@ -168,11 +166,10 @@ class RFrance
         // on récupère les <script type="application/ld+json">
         $graph = $this->getGraphFromScriptJson();
 
-        // un seul épisode
+        // un seul épisode (on peut avoir des "encarts")
         if (in_array('RadioEpisode', array_keys($graph))) {
-            $this->page = $this->setPageRadioEpisode($this->page);
-            $item = $this->setItemRadioEpisode(new Item());
-            $this->page->all_items[] = $item;
+            $this->setPageRadioEpisode($graph);
+            $this->setItemRadioEpisode($graph);
             $this->setItemsEncartsInRadioEpisode();
             return true;
         }
@@ -182,7 +179,7 @@ class RFrance
         // - 'PodcastSeries' une liste d'épisode ('série' ou podcast seul)
         if (in_array('WebPage', array_keys($graph))) {
             if (isset($graph['WebPage']['mainEntity'])) {
-                $this->page = $this->setPageSeries($this->page);
+                $this->setPageSeries($graph);
                 return $this->setAllItemsFromSerie();
             } else {
                 $this->page->type = 'WebPage';
@@ -192,7 +189,7 @@ class RFrance
             }
         }
 
-        // cas 'NewsArticle', c'est un article de blabla // TODO voir si NewsArticle seul ou pas
+        // cas 'NewsArticle', c'est un article de blabla
         // il peut y avoir des encarts, on essaie
         if (in_array('NewsArticle', array_keys($graph))) {
             $graph = $graph['NewsArticle'];
@@ -213,52 +210,43 @@ class RFrance
     /**
      * recherche (basique) d'un flus rss, on ne sait jamais...
      *
-     * ex : \<link rel="alternate" title="À v ..." href="https://radiofran...0351.xml" type="application/rss+xml">
+     * <link rel="alternate" title="À v ..." href="https://radiofran...0351.xml" type="application/rss+xml">
      */
     private function getRssUrl(): ?string
     {
-        $crawler_rss = $this->crawler->filter('link[rel="alternate"]');
-        return ($crawler_rss->count() > 0) ? $crawler_rss->attr('href') : null;
+        // '#<link .*?rel="alternate".*?href="(?<RSS>[^"]*?)"#';
+        $element = find_in_dom($this->dom, 'link', 'rel', 'alternate');
+        return empty($element) ? null : $element[0]->getAttribute('href');
     }
 
     /**
-     * Set Page from the good graph for one radio episode
+     * Set Page info with the good graph for one radio episode
      *
-     * @param Page $page
-     * @return Page
+     * @param mixed[] $graph
      */
-    private function setPageRadioEpisode(Page $page): Page
+    private function setPageRadioEpisode(array $graph): void
     {
-        if (empty($this->graph)) {
-            $this->graph = $this->getGraphFromScriptJson();
-        }
-
-        $radio_episode = $this->graph['RadioEpisode'];
-        // $page->webpage_url = $this->graph['NewsArticle']['mainEntityOfPage']['@id'];
-        $page->type = 'RadioEpisode';
-        $page->station = $this->graph['NewsArticle']['publisher']['name'];
-        $page->emission = trim($radio_episode['partOfSeries']['name']);
-        $page->title = trim(html_entity_decode($radio_episode['name']));
-        $page->description = trim(html_entity_decode($radio_episode['description']));
-        $page->image = $this->extractImage($radio_episode);
-        ;
-        $page->timestamp = strtotime($radio_episode['dateCreated']);
-        return $page;
+        $radio_episode = $graph['RadioEpisode'];
+        $this->page->type = 'RadioEpisode';
+        $this->page->station = $graph['NewsArticle']['publisher']['name'];
+        $this->page->emission = trim($radio_episode['partOfSeries']['name']);
+        $this->page->title = trim(html_entity_decode($radio_episode['name']));
+        $this->page->description = trim(html_entity_decode($radio_episode['description']));
+        $this->page->image = $this->extractImage($radio_episode);
+        $this->page->timestamp = strtotime($radio_episode['dateCreated']);
     }
 
     /**
-     * Set Item (with all properties) from the good graph for one radio episode
+     * Set Item from the good graph for one radio episode
      *
-     * @param Item $item
-     * @return Item
+     * @param mixed[] $graph
      */
-    private function setItemRadioEpisode(Item $item): Item
+    private function setItemRadioEpisode(array $graph): void
     {
-        if (empty($this->graph)) {
-            $this->graph = $this->getGraphFromScriptJson();
-        }
-        $episode_graphe = $this->graph['RadioEpisode'];
-        $item->webpage_url = $this->graph['NewsArticle']['mainEntityOfPage']['@id'];
+        $item = new Item();
+        $episode_graphe = $graph['RadioEpisode'];
+
+        $item->webpage_url = $graph['NewsArticle']['mainEntityOfPage']['@id'];
         $item->title = trim(html_entity_decode($episode_graphe['name']));
         $item->id = md5($item->title);
         $item->description = trim(html_entity_decode($episode_graphe['description']));
@@ -295,7 +283,7 @@ class RFrance
             }
         }
 
-        return $item;
+        $this->page->all_items[] = $item;
     }
 
     private function setItemsEncartsInRadioEpisode(): void
@@ -312,7 +300,7 @@ class RFrance
             if (isset($decode)) {
                 $item = new Item();
                 $item->id = $decode['id'];
-                $item->title = $decode['title'];
+                $item->title = trim(html_entity_decode($decode['title']));
                 $item->description = $decode['title']; // pas de description dans les encarts
                 $item->url = $decode['url'];
                 $item->duration = $decode['duration'];
@@ -347,6 +335,7 @@ class RFrance
     /**
      * Only for media information, set media and url from preference
      *
+     * @param Item $item
      * @param mixed[] $manifestations
      */
     private function setItemMediaFromManifestations(Item $item, array $manifestations): void
@@ -380,43 +369,40 @@ class RFrance
     /**
      * Set all informations for a page if type "series" (RadioSeries or PodcastSeries)
      *
-     * @param Page $page
+     * @param mixed[] $graph
     */
-    private function setPageSeries(Page $page): Page
+    private function setPageSeries(array $graph): void
     {
-        $graph_web_page = $this->graph['WebPage'];
-        $page->station = $graph_web_page['mainEntity']['sourceOrganization']['name'];
-        $page->type = $graph_web_page['mainEntity']['@type'];
-        $page->title = html_entity_decode($graph_web_page['mainEntity']['name']);
-        // TODO in big info ?
+        $graph_web_page = $graph['WebPage'];
+
+        $this->page->station = $graph_web_page['mainEntity']['sourceOrganization']['name'];
+        $this->page->type = $graph_web_page['mainEntity']['@type'];
+        $this->page->title = trim(html_entity_decode($graph_web_page['mainEntity']['name']));
         // 'emission' pour PodcastSeries est trouvée dans getAllItemsFromSerie
-        $page->emission = ($page->type == 'RadioSeries') ? $page->title : '';
-        $page->description = html_entity_decode($graph_web_page['mainEntity']['abstract'] ?? '');
-        $page->image = $this->extractImage($graph_web_page['mainEntity']);
-        $filter_publish = $this->crawler->filter('meta[property="article:published_time"]');
-        if ($filter_publish->count() > 0) {
-            $page->timestamp = strtotime($filter_publish->attr('content') ?? '') ?: 0;
+        $this->page->emission = ($this->page->type == 'RadioSeries') ? $this->page->title : '';
+        $this->page->description = html_entity_decode($graph_web_page['mainEntity']['abstract'] ?? '');
+        $this->page->image = $this->extractImage($graph_web_page['mainEntity']);
+        $filter_publish = find_in_dom($this->dom, 'meta', 'property', 'article:published_time');
+        if (count($filter_publish) > 0) {
+            $this->page->timestamp = strtotime($filter_publish[0]->getAttribute('content')) ?: 0;
         }
-
-        return $page;
     }
-
 
     /**
      * Extract from html a big array with multiple playerInfo
      *
      * @param integer $num_page
-     * @return mixed[]array
+     * @return mixed[]
      * @throws \Exception
      */
     private function getBigPlayerInfoSeries(int $num_page): array
     {
         // en bas :-) de la page, entre ';a.prev=' et ';return'
+        // il y a tous les "ManifestationAudio", $items_array est indexé par une (ou+) lettre (a-zA-Z_$)
         preg_match('/(a\.prev=.+);return/', $this->html, $matches);
         if (!isset($matches[1])) {
             throw new \Exception('Pas d\'information extraite (page : ' . $num_page . ')');
         }
-
         // transformation du retour de la regexp en tableau
         $items_array = from_js_obj_to_array($matches[1]);
         // on vire le 'a', ce sont des infos de navigation (pas utilisées)
@@ -441,7 +427,7 @@ class RFrance
         $big_info = str_replace('void 0', 'null', $big_info);
 
         $matches = [];
-        $ret = preg_match_all('/\[((\w,?)+)\]/', $big_info, $matches, PREG_OFFSET_CAPTURE);
+        $ret = preg_match_all('/\[(([\w$],?)+)\]/', $big_info, $matches, PREG_OFFSET_CAPTURE);
         if ($ret === false) {
             throw new \Exception('Erreur analyse des positions des media (page : ' . $num_page . ')');
         }
@@ -450,7 +436,7 @@ class RFrance
         // 1 : l'offset dans $big_info
         $offset = 0;
         $delta = 0;
-        // l'intégration de $items_array dans $big_info
+        // l'intégration de $items_array_json dans $big_info
         foreach($matches[1] as $m1) {
             $offset = $m1[1] + $delta;
             $letters = explode(',', $m1[0]);
@@ -471,7 +457,7 @@ class RFrance
         try {
             $big_info_array = json5_decode($big_info, true);
         } catch (\Throwable $th) {
-            throw new \Exception('json5 : ' . $th->getMessage() . ' on line: ' . $th->getLine() . '(page : ' . $num_page);
+            throw new \Exception('json5 : ' . $th->getMessage() . ' -- line: ' . $th->getLine() . ' -- page: ' . $num_page);
         }
         return $big_info_array;
     }
@@ -486,12 +472,16 @@ class RFrance
      */
     private function setItemFromSeries(Item $item, string $webpage_url, array $player_info): Item
     {
-        $item->title = $player_info['title'];
-        $item->description = trim($player_info['description']);
+        $item->title = trim(html_entity_decode($player_info['title']));
+        $item->description = trim(html_entity_decode($player_info['description']));
         $item->id = $player_info['id'];
         $item->emission = $player_info['playerInfo']['playerMetadata']['firstLine'] ?? '';
         $item->thumbnail = $player_info['visual']['src'] . '/' . $player_info['visual']['preset'];
-        $item->webpage_url = UriResolver::resolve($player_info['link'], $webpage_url);
+        if (!empty($player_info['link'])) {
+            $item->webpage_url = ($player_info['link'][0] == '/') ? 'https://' . self::RADIOFRANCE_HOST . $player_info['link'] : $player_info['link'];
+        } else {
+            $item->webpage_url = $webpage_url;
+        }
         $item->duration = (int) $player_info['manifestations'][0]['duration'];
         $item->timestamp = (int) $player_info['manifestations'][0]['created'];
         // media, url et mimetype
@@ -536,6 +526,7 @@ class RFrance
             // on assigne pour chaque 'playerInfo' contenant 'manifestations'
             foreach($big_info_array as $info) {
                 if (!empty($info['manifestations'])) {
+                    // TODO virer le new Item ?
                     $item = $this->setItemFromSeries(new Item(), $this->webpage_url, $info);
                     $this->page->all_items[] = $item;
                 }
@@ -651,6 +642,7 @@ class RFrance
         $json['channel_url'] = $this->page->webpage_url;
         $json['webpage_url'] = $this->page->webpage_url;
         $json['uploader'] = $this->page->station . ' - ' . $this->page->emission;
+        $json['extractor'] = $this->page->extractor;
         if (isset($this->page->image) && !empty((array)$this->page->image)) {
             $json['image'] = (array)$this->page->image;
         }

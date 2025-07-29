@@ -16,8 +16,6 @@
     "require": {
         "php": ">=8.1",
         "symfony/cache": "^6.4|^7.0",
-        "symfony/dom-crawler": "^6.4|^7.0",
-        "symfony/css-selector": "^6.4|^7.0",
         "colinodell/json5": "^3.0"
     },
     "scripts": {
@@ -26,8 +24,8 @@
     },
     "license": "MIT",
     "require-dev": {
-        "phpstan/phpstan": "^1.12",
         "phpunit/phpunit": "^10.5",
-        "symfony/var-dumper": "^6.4"
+        "symfony/var-dumper": "^6.4",
+        "phpstan/phpstan": "^2.1"
     }
 }

@@ -3,8 +3,21 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+try to follow [Semantic Versioning](https://semver.org/)
 
 ## [Unreleased]
+
+## 2.5.0 - 2025-07-29
+### Fixed
+- erreur sur certaines émissions (changement dans l'API ?)
+- la classe peut maintenant être instantiée qu'une seule fois et faire +sieurs 'extract()' sans erreur.
+### Changed
+- BC, on ne peut plus ajouter un crawler, mais directement le html avant le 'extract()'.
+### Removed
+- Fin de l'utilisation des dépendances à Symfony/dom-crawler et Symfony/css-selector
+### Added
+- beaucoup plus de tests (episode (avec et ss encart), emission, serie, rss)
+
 ## 2.4.7 - 2025-07-17
 ### Fixed
 - Si un Crawler est existe, vérifie que l'url de l'extraction est celle du crawler

@@ -20,7 +20,7 @@ require_once 'vendor/autoload.php';
 use Flatgreen\RFrance\RFrance;
 ```
 
-Instantiate the class, with an URL page
+Instantiate the class, extract with an URL page
 
 ```php
 $rf = new RFrance(); // optional in constructor, add cache directory and cache duration for page, 1 day by default.
@@ -41,7 +41,7 @@ if (empty($rf->error)){
 }
 ```
 
-An Item always return an (audio media) url. This is the `best` the class can find (see [Item.php](/src/Item.php) for information).
+An Item return an (audio media) url. This is the `best` the class can find (see [Item.php](/src/Item.php) for information).
 
 Three output helpers :
 
@@ -50,6 +50,7 @@ Three output helpers :
 echo $FC->toArray();
 
 // RSS 2.0, always return informations (even with no item)
+// Be carefull, max_items is not present in the feed
 header("Content-Type: text/xml; charset=UTF-8");
 echo $FC->toRss();
 

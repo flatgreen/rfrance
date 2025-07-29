@@ -24,4 +24,5 @@ class Page
     public stdClass $image;
     /** @var array<Item> $all_items */
     public array $all_items = [];
+    public string $extractor = 'rfrance';
 }

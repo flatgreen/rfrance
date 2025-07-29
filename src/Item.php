@@ -14,17 +14,15 @@ class Item
     public string $title;
     public string $description;
     public int $timestamp;
-    /** @var string $id = md5('title') or other */
-    public string $id;
+    public string $id; // md5('title') or other */
     public string $mimetype;
     public int $duration;
     public string $emission;
-    /** @var string $thumbnail the url (src) of the image */
-    public ?string $thumbnail = null;
-    /** @var string $url url of the media */
-    public string $url;
+    public ?string $thumbnail = null; // url (src) of the image
+    public string $url; // url of the media
     /** @var mixed[] $media */
     public array $media = [];
+    public string $web_extractor = 'rfrance';
 
     /*
     Niveau encodage son, rangé selon mon classement du meilleur au moins bon
