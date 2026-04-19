@@ -1,4 +1,5 @@
 <?php
+
 /*
  * (c) flatgreen <flatgreen@gmail.com>
  *
@@ -30,6 +31,11 @@ class Item
 
     0 est donc la meilleure préférence, cad pour 'id' : '28'
     rem : au 26 jan. 2025, le 22 et 27 semblent plus souvent utilisés
+
+    2026 avril
+        RF a changé son site et le preset ne contient plus 'id'
+        'id' est présent dans le nom du fichier audio (à la fin -**.ext ou preque à la fin -**-)
+        À priori (mais pas toujours), RF semble diffuser le meilleur encodage
     */
     public const PREFERENCE = [
         '28' => 0, // "{id:"28",name:"binaural",encoding:"AAC",bitrate:192,frequency:48,level:"Binaural -16LUFS"}"

@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 try to follow [Semantic Versioning](https://semver.org/)
 
 ## [Unreleased]
+## 2.6.0 - 2026-04-19
+### Fixed
+- le site de RF change, cette classe aussi, gros refactoring
+- les images sont, à priori, toutes bien retrouvées
+- les url sont nettoyées en entrée, c'est mieux !
+### Changed
+- le choix des medias (audios) est maintenant celui de RF, la préférence interne est mise en stand-by.
+- il y a plus de requêtes vers RF, c'est comme ça, faudrait paralléliser !
+- maj de composer.json pour les dépendances
+### Deprecated
+- $this->error sera enlevée à la prochaine version, il ne restera que les exceptions
 
 ## 2.5.0 - 2025-07-29
 ### Fixed

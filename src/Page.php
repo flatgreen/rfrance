@@ -18,7 +18,7 @@ class Page
     public string $title;
     public string $description;
     public int $timestamp = 0;
-    public string $emission = '';
+    public ?string $emission = null;
     public string $type;
     public ?string $rss_url = null;
     public stdClass $image;

@@ -5,3 +5,4 @@ vendor/
 doc.txt
 index.php
 composer.lock
+download.php

@@ -28,7 +28,7 @@ $rf = new RFrance(); // optional in constructor, add cache directory and cache d
 try {
     $rf->extract(URL); // optional: set a (approx.) limit $max_items (default: -1, all items)
 } catch (\Throwable $th) {
-    //throw $th;
+    // ...
 }
 ```
 
@@ -41,7 +41,7 @@ if (empty($rf->error)){
 }
 ```
 
-An Item return an (audio media) url. This is the `best` the class can find (see [Item.php](/src/Item.php) for information).
+All properties for Item, in [Item.php](/src/Item.php).
 
 Three output helpers :
 

@@ -1,4 +1,5 @@
 <?php
+
 /*
  * (c) flatgreen <flatgreen@gmail.com>
  *
@@ -27,6 +28,7 @@ class RFrance
 
     public Page $page;
     private string $html = '';
+    /** @deprecated */
     public string $error = '';
     private int $max_items;
     private string $webpage_url = '';
@@ -35,6 +37,7 @@ class RFrance
     private array $excluded_end_urls = [
         'podcasts',
         'grille-programmes',
+        'societe'
     ];
 
     /**
@@ -73,7 +76,9 @@ class RFrance
 
     private function isValidUrl(string $url): bool
     {
-        if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+        $url = strtok($url, '?#');
+        
+        if (filter_var($url, FILTER_VALIDATE_URL) === false || $url === false) {
             $this->error = 'url non valide';
             return false;
         }
@@ -97,17 +102,30 @@ class RFrance
       */
     private function getGraphFromScriptJson(): array
     {
+        // on prend tous les ld+json, en général il y en a 2, chacun avec +sieurs @graph
         $elements = find_in_dom($this->dom, 'script', 'type', 'application/ld+json');
         $all_scripts_decode = [];
-        foreach($elements as $element) {
+        foreach ($elements as $element) {
             $ar_decode = json_decode($element->textContent, true);
             $all_scripts_decode = array_merge_recursive($all_scripts_decode, $ar_decode);
         }
+        // on vire les @context et les @graph @type="BreadcrumbList"
         $ar_filter = array_filter($all_scripts_decode['@graph'], function ($v) {
             return ($v['@type'] !== 'BreadcrumbList');
         });
-        $ar_combine = array_combine(array_column($ar_filter, '@type'), $ar_filter);
-        return $ar_combine;
+
+        // pour chaque type on garde le array le plus grand
+        $ar_final = [];
+        $ar_type = array_keys(array_flip(array_column($ar_filter, '@type')));
+        foreach ($ar_type as $type) {
+            $ar_one_type = array_filter($ar_filter, function ($v) use ($type) {
+                return ($v['@type'] == $type);
+            });
+            $good_type = (count($ar_one_type) > 1) ? max($ar_one_type) : array_shift($ar_one_type);
+            $ar_final[$type] = $good_type;
+        }
+        
+        return $ar_final;
     }
 
     /**
@@ -165,9 +183,10 @@ class RFrance
         $this->page->rss_url = $this->getRssUrl();
         // on récupère les <script type="application/ld+json">
         $graph = $this->getGraphFromScriptJson();
+        $graph_keys = array_keys($graph);
 
         // un seul épisode (on peut avoir des "encarts")
-        if (in_array('RadioEpisode', array_keys($graph))) {
+        if (in_array('RadioEpisode', $graph_keys)) {
             $this->setPageRadioEpisode($graph);
             $this->setItemRadioEpisode($graph);
             $this->setItemsEncartsInRadioEpisode();
@@ -177,7 +196,7 @@ class RFrance
         // cas 'WebPage', selon mainEntity@type :
         // - 'RadioSeries' c'est une émission de radio (liste épisodes ou de saison)
         // - 'PodcastSeries' une liste d'épisode ('série' ou podcast seul)
-        if (in_array('WebPage', array_keys($graph))) {
+        if (in_array('WebPage', $graph_keys)) {
             if (isset($graph['WebPage']['mainEntity'])) {
                 $this->setPageSeries($graph);
                 return $this->setAllItemsFromSerie();
@@ -185,25 +204,28 @@ class RFrance
                 $this->page->type = 'WebPage';
                 $this->page->title = $graph['WebPage']['name'];
                 $this->page->description = $graph['WebPage']['description'];
+                $this->page->image = $this->extractImageMeta();
                 return true;
             }
         }
 
         // cas 'NewsArticle', c'est un article de blabla
         // il peut y avoir des encarts, on essaie
-        if (in_array('NewsArticle', array_keys($graph))) {
+        if (in_array('NewsArticle', $graph_keys)) {
             $graph = $graph['NewsArticle'];
             $this->page->title = $graph['headline'];
             $this->page->description = $graph['description'];
             $this->page->timestamp = strtotime($graph['datePublished']);
             $this->page->station = $graph['publisher']['name'];
             $this->page->type = 'NewsArticle';
-            $this->page->image = $this->extractImage($graph);
+            $this->page->image = $this->extractImageMeta();
             $this->setItemsEncartsInRadioEpisode();
             return true;
         }
 
         $this->error = 'Pas de donnée extraite (pas d\'audio ?)';
+        // throw new \Exception($this->error);
+        
         return false;
     }
 
@@ -226,14 +248,13 @@ class RFrance
      */
     private function setPageRadioEpisode(array $graph): void
     {
-        $radio_episode = $graph['RadioEpisode'];
         $this->page->type = 'RadioEpisode';
         $this->page->station = $graph['NewsArticle']['publisher']['name'];
-        $this->page->emission = trim($radio_episode['partOfSeries']['name']);
-        $this->page->title = trim(html_entity_decode($radio_episode['name']));
-        $this->page->description = trim(html_entity_decode($radio_episode['description']));
-        $this->page->image = $this->extractImage($radio_episode);
-        $this->page->timestamp = strtotime($radio_episode['dateCreated']);
+        $this->page->emission = trim($graph['RadioEpisode']['partOfSeries']['name']);
+        $this->page->title = trim(html_entity_decode($graph['NewsArticle']['headline']));
+        $this->page->description = trim(html_entity_decode($graph['NewsArticle']['description']));
+        $this->page->image = $this->extractImageArray($graph['RadioEpisode']['image']);
+        $this->page->timestamp = strtotime($graph['RadioEpisode']['dateCreated']);
     }
 
     /**
@@ -243,45 +264,32 @@ class RFrance
      */
     private function setItemRadioEpisode(array $graph): void
     {
+        // si l'épisode n'est pas prêt on abandonne
+        if (!isset($graph['RadioEpisode']['mainEntity'])) {
+            return;
+        }
+
         $item = new Item();
         $episode_graphe = $graph['RadioEpisode'];
 
         $item->webpage_url = $graph['NewsArticle']['mainEntityOfPage']['@id'];
-        $item->title = trim(html_entity_decode($episode_graphe['name']));
+        $item->title = trim(html_entity_decode($graph['NewsArticle']['headline']));
         $item->id = md5($item->title);
-        $item->description = trim(html_entity_decode($episode_graphe['description']));
-        $item->timestamp = strtotime($episode_graphe['dateCreated']);
-        $item->thumbnail = $episode_graphe['image']['url'];
-        $item->emission = trim($episode_graphe['partOfSeries']['name']);
-        if (isset($episode_graphe['mainEntity'])) {
-            $item->url = $episode_graphe['mainEntity']['contentUrl'];
-            $item->mimetype = $episode_graphe['mainEntity']['encodingFormat'];
-            $item->duration = duration_ISO_to_timestamp($episode_graphe['mainEntity']['duration']);
-        }
+        $item->description = trim(html_entity_decode($graph['NewsArticle']['description']));
+        $item->timestamp = strtotime($graph['RadioEpisode']['dateCreated']);
+        $item->thumbnail = $graph['RadioEpisode']['image']['url'];
+        $item->emission = trim($graph['RadioEpisode']['partOfSeries']['name']);
+
+        $item->url = $episode_graphe['mainEntity']['contentUrl'];
+        $item->mimetype = $episode_graphe['mainEntity']['encodingFormat'];
+        $item->duration = duration_ISO_to_timestamp($episode_graphe['mainEntity']['duration']);
+
 
         // on test si plusieurs media disponibles
-        $preg = preg_match_all('/manifestations:(\[.*?\])/', $this->html, $matches);
-        if ($preg !== 0) {
-            $itema = get_itema($item->url);
-            if ($itema !== null) {
-                // tri des réponses
-                $manifestation_audio = [];
-                foreach($matches[1] as $matche) {
-                    if (strpos($matche, $itema) !== false) {
-                        try {
-                            $decode = json5_decode($matche, true);
-                        } catch (\Throwable $th) {
-                        }
-                        if (isset($decode)) {
-                            $manifestation_audio = array_merge($manifestation_audio, $decode);
-                        }
-                    }
-                }
-                // ss doublons sur id
-                $manifestation_audio_final = array_values(array_column($manifestation_audio, null, 'id'));
-                $this->setItemMediaFromManifestations($item, $manifestation_audio_final);
-            }
-        }
+        // ==> Abandon au 17 avril 2026, c'est possible en scrapant le 1er bouton,
+        // prendre l'id et avec une requête sur aod avoir tous les medias.
+        // à priori, RF délivre la meileure qualité
+        // voir aussi Item.php
 
         $this->page->all_items[] = $item;
     }
@@ -292,7 +300,7 @@ class RFrance
         if ($preg === 0 || $preg === false) {
             return;
         }
-        foreach($matches[1] as $matche) {
+        foreach ($matches[1] as $matche) {
             try {
                 $decode = json5_decode($matche, true);
             } catch (\Throwable $th) {
@@ -314,21 +322,41 @@ class RFrance
     }
 
     /**
-     * Use the graph to set an image object
+     * From an array ['url' =>, 'height' =>, 'width' => ] set an image object
      *
-     * image dans les @graph depuis nov. 2024 et pas/plus dans les meta pour les series
+     * image dans les @graph depuis nov. 2024 (et aussi dans les meta retour avril 2026)
      *
-     * @param array<mixed> $graph_within_image
+     * @param string[] $info_image
      * @return stdClass $image
      */
-    private function extractImage(array $graph_within_image)
+    private function extractImageArray(array $info_image)
     {
         $image = new stdClass();
-        if (isset($graph_within_image['image'])) {
-            $image->src = $graph_within_image['image']['url'];
-            $image->height = $graph_within_image['image']['height'];
-            $image->width = $graph_within_image['image']['width'];
-        }
+        $image->src = $info_image['url'] ?? null;
+        $image->height = $info_image['height'] ?? null;
+        $image->width = $info_image['width'] ?? null;
+        return $image;
+    }
+
+    /**
+     * Use the metadata to retriev image infos
+     *
+     * image dans @graph disparue depuis avril 2026 (à voir?), retour dans les meta
+     *
+     * <meta property="og:image" content="https://www.radiofrance.fr/pikapi/images/dea723ef-66b0-4b7b-bc2c-d82db0a4dbb7/1200x680"/> <!--[--><meta property="og:image:width" content="1200"/> <meta property="og:image:height" content="680"/>
+     *
+     * @return stdClass $image
+     */
+    private function extractImageMeta()
+    {
+        $image = new stdClass();
+        $src_elt = find_in_dom($this->dom, 'meta', 'property', 'og:image');
+        $image->src = (isset($src_elt[0])) ? $src_elt[0]->getAttribute('content') : null;
+        $width_elt = find_in_dom($this->dom, 'meta', 'property', 'og:image:width');
+        $image->width = (isset($width_elt[0])) ? $width_elt[0]->getAttribute('content') : null;
+        $height_elt = find_in_dom($this->dom, 'meta', 'property', 'og:image:height');
+        $image->height = (isset($height_elt[0])) ? $height_elt[0]->getAttribute('content') : null;
+
         return $image;
     }
 
@@ -336,31 +364,36 @@ class RFrance
      * Only for media information, set media and url from preference
      *
      * @param Item $item
-     * @param mixed[] $manifestations
+     * @param mixed[] $sources
      */
-    private function setItemMediaFromManifestations(Item $item, array $manifestations): void
+    private function setItemMediaFromSources(Item $item, array $sources): void
     {
-        foreach($manifestations as $k => $medium) {
+        foreach ($sources as $k => $medium) {
             $item->media[] = [
                 'url' => $medium['url'],
-                'preset' => $medium['preset'],
+                'preset' => $medium['preset'] ?? null,
                 'mimetype' => get_audio_mimetype($medium['url'])
             ];
-            // on ajoute une 'preference' pour selon le type de preset
-            if (!empty($medium['preset']) || $medium['preset'] == 'null') {
-                if (key_exists($medium['preset']['id'], Item::PREFERENCE)) {
-                    $item->media[$k]['preset']['preference'] = Item::PREFERENCE[$medium['preset']['id']];
-                }
-            }
+
+            // voir Item.php pour explications
+
+            //    // on ajoute une 'preference' pour selon le type de preset
+            //     if (!empty($medium['preset']) || $medium['preset'] == 'null') {
+            //         if (key_exists($medium['preset']['id'], Item::PREFERENCE)) {
+            //             $item->media[$k]['preset']['preference'] = Item::PREFERENCE[$medium['preset']['id']];
+            //         }
+            //     }
         }
-        // range les média par préférence (voir Item)
-        usort($item->media, function ($a, $b) {
-            if (isset($a['preset']['preference']) && isset($b['preset']['preference'])) {
-                return $a['preset']['preference'] <=> $b['preset']['preference'];
-            } else {
-                return 0;
-            }
-        });
+
+        // // range les média par préférence
+        // usort($item->media, function ($a, $b) {
+        //     if (isset($a['preset']['preference']) && isset($b['preset']['preference'])) {
+        //         return $a['preset']['preference'] <=> $b['preset']['preference'];
+        //     } else {
+        //         return 0;
+        //     }
+        // });
+
         // pour 'url' on prend le premier
         $item->url = $item->media[0]['url'];
         $item->mimetype = $item->media[0]['mimetype'];
@@ -377,115 +410,40 @@ class RFrance
 
         $this->page->station = $graph_web_page['mainEntity']['sourceOrganization']['name'];
         $this->page->type = $graph_web_page['mainEntity']['@type'];
-        $this->page->title = trim(html_entity_decode($graph_web_page['mainEntity']['name']));
+        // title semble être aussi dans ['name'] directement (sans la fin ...|...)
+        $this->page->title = trim(html_entity_decode($graph_web_page['name']));
         // 'emission' pour PodcastSeries est trouvée dans getAllItemsFromSerie
-        $this->page->emission = ($this->page->type == 'RadioSeries') ? $this->page->title : '';
+        $this->page->emission = ($this->page->type == 'RadioSeries') ? $this->page->title : null;
         $this->page->description = html_entity_decode($graph_web_page['mainEntity']['abstract'] ?? '');
-        $this->page->image = $this->extractImage($graph_web_page['mainEntity']);
-        $filter_publish = find_in_dom($this->dom, 'meta', 'property', 'article:published_time');
-        if (count($filter_publish) > 0) {
-            $this->page->timestamp = strtotime($filter_publish[0]->getAttribute('content')) ?: 0;
-        }
+        $this->page->image = $this->extractImageMeta();
     }
 
     /**
-     * Extract from html a big array with multiple playerInfo
+     * Inside a series set all good informations in an Item
      *
-     * @param integer $num_page
-     * @return mixed[]
-     * @throws \Exception
-     */
-    private function getBigPlayerInfoSeries(int $num_page): array
-    {
-        // en bas :-) de la page, entre ';a.prev=' et ';return'
-        // il y a tous les "ManifestationAudio", $items_array est indexé par une (ou+) lettre (a-zA-Z_$)
-        preg_match('/(a\.prev=.+);return/', $this->html, $matches);
-        if (!isset($matches[1])) {
-            throw new \Exception('Pas d\'information extraite (page : ' . $num_page . ')');
-        }
-        // transformation du retour de la regexp en tableau
-        $items_array = from_js_obj_to_array($matches[1]);
-        // on vire le 'a', ce sont des infos de navigation (pas utilisées)
-        unset($items_array['a']);
-
-        $items_array_json = [];
-        foreach($items_array as $k => $v) {
-            // on transforme le 'preset' en array
-            $v['preset'] = from_js_dict_to_array($v['preset']);
-            // tout en json pour la futur intégration
-            $json = json_encode($v);
-            $items_array_json[$k] = ($json === false) ? '' : $json;
-        }
-
-        // on prend les 'playerInfo'
-        $matches = [];
-        preg_match('/a\.items=\[(.+)\];a\.prev/', $this->html, $matches);
-        if (!isset($matches[1])) {
-            throw new \Exception('Pas trouvé les infos précises des playerInfo (page : ' . $num_page . ')');
-        }
-        $big_info = $matches[1];
-        $big_info = str_replace('void 0', 'null', $big_info);
-
-        $matches = [];
-        $ret = preg_match_all('/\[(([\w$],?)+)\]/', $big_info, $matches, PREG_OFFSET_CAPTURE);
-        if ($ret === false) {
-            throw new \Exception('Erreur analyse des positions des media (page : ' . $num_page . ')');
-        }
-        // le résultat intéressant est dans la capture $matches[1], et dans ce array :
-        // 0 : la liste de lettres si 2 audio ex: 'b,c'
-        // 1 : l'offset dans $big_info
-        $offset = 0;
-        $delta = 0;
-        // l'intégration de $items_array_json dans $big_info
-        foreach($matches[1] as $m1) {
-            $offset = $m1[1] + $delta;
-            $letters = explode(',', $m1[0]);
-            $letters_json = [];
-            foreach($letters as $one_letter) {
-                $letters_json[] = $items_array_json[$one_letter];
-            };
-            $new_in = implode(',', $letters_json);
-            $len_m1_0 = strlen($m1[0]);
-            $big_info = substr_replace($big_info, $new_in, $offset, $len_m1_0);
-            $delta = $delta + strlen($new_in) - $len_m1_0;
-        }
-        // parfois un épisode n'est pas prêt, on arrange (on vide)
-        $big_info = preg_replace('/manifestations:\w/', 'manifestations:""', $big_info);
-        // pour une liste de 'playerInfo'
-        $big_info = '[' . $big_info . ']';
-
-        try {
-            $big_info_array = json5_decode($big_info, true);
-        } catch (\Throwable $th) {
-            throw new \Exception('json5 : ' . $th->getMessage() . ' -- line: ' . $th->getLine() . ' -- page: ' . $num_page);
-        }
-        return $big_info_array;
-    }
-
-    /**
-     * Inside a series set all good informations in Item
-     *
-     * @param Item $item
      * @param string $webpage_url
      * @param mixed[] $player_info
      * @return Item
      */
-    private function setItemFromSeries(Item $item, string $webpage_url, array $player_info): Item
+    private function setItemFromSeries(string $webpage_url, array $player_info): Item
     {
-        $item->title = trim(html_entity_decode($player_info['title']));
-        $item->description = trim(html_entity_decode($player_info['description']));
+        $item = new Item();
+        $item->title = trim(html_entity_decode($player_info['titleProps']['title']));
+        $item->description = trim(html_entity_decode($player_info['titleProps']['text']));
         $item->id = $player_info['id'];
-        $item->emission = $player_info['playerInfo']['playerMetadata']['firstLine'] ?? '';
-        $item->thumbnail = $player_info['visual']['src'] . '/' . $player_info['visual']['preset'];
-        if (!empty($player_info['link'])) {
-            $item->webpage_url = ($player_info['link'][0] == '/') ? 'https://' . self::RADIOFRANCE_HOST . $player_info['link'] : $player_info['link'];
+        $item->emission = $player_info['metadata']['firstLine'] ?? '';
+        // la fin de l'url est un peu au pif ...
+        $item->thumbnail = $player_info['visual']['src'] . '/' . '2048';
+        if (!empty($player_info['titleProps']['href'])) {
+            $item->webpage_url = ($player_info['titleProps']['href'][0] == '/') ? 'https://' . self::RADIOFRANCE_HOST . $player_info['titleProps']['href'] : $player_info['titleProps']['href'];
         } else {
             $item->webpage_url = $webpage_url;
         }
-        $item->duration = (int) $player_info['manifestations'][0]['duration'];
-        $item->timestamp = (int) $player_info['manifestations'][0]['created'];
+        $item->duration = (int) $player_info['manifestation']['duration'];
+        $item->timestamp = date_french_to_timestamp($player_info['publishedDate']);
+
         // media, url et mimetype
-        $this->setItemMediaFromManifestations($item, $player_info['manifestations']);
+        $this->setItemMediaFromSources($item, $player_info['sources']);
         return $item;
     }
 
@@ -501,63 +459,83 @@ class RFrance
         // si c'est "null" (string), c'est une seule page (ou pas de page suivante)
         // sinon, on scrape $url?p=2, on prend les items, et on recommence jusqu'à la limite max_items.
 
-        while ($a_next !== 'null') {
+        while ($a_next !== null) {
             // on scrape la page (la page "1" est dejà dans $this->html)
             if ($num_page !== 1) {
                 $html = $this->getHtml($this->webpage_url . '?p=' . $num_page);
                 if ($html === false) {
                     $this->error = 'Le scraping de la page ' . $num_page . ' a échoué';
-                    return false;
+                    throw new \Exception($this->error);
                 } else {
                     $this->html = $html;
                 }
             }
 
-            try {
-                $big_info_array = $this->getBigPlayerInfoSeries($num_page);
-            } catch (\Throwable $th) {
-                $this->error = $th->getMessage();
-                return false;
+            // on cherche la grande liste de tous les épisodes, on en profite pour prendre 'next'
+            $ret = preg_match('/expressions:{items:(\[.*?\]),next:(.{6})}/', $this->html, $matches);
+            if ($ret === false || !isset($matches[0])) {
+                throw new \Exception('Pas d\'information extraite (page : ' . $num_page . ')');
             }
 
-            // au passage, le nom de l'émission
-            $this->page->emission = $big_info_array[0]['playerInfo']['playerMetadata']['firstLine'] ?? '';
+            // next:"MjA=" or next:void 0
+            $next = trim($matches[2], '"');
+            $next = ($next == 'void 0' || $next == null) ? null : $next;
 
-            // on assigne pour chaque 'playerInfo' contenant 'manifestations'
-            foreach($big_info_array as $info) {
-                if (!empty($info['manifestations'])) {
-                    // TODO virer le new Item ?
-                    $item = $this->setItemFromSeries(new Item(), $this->webpage_url, $info);
-                    $this->page->all_items[] = $item;
+            $matches[1] = str_replace('void 0', 'null', $matches[1]);
+            try {
+                $items_array = json5_decode($matches[1], true);
+            } catch (\Throwable $th) {
+                $this->error = 'json5 : ' . $th->getMessage() . ' -- line: ' . $th->getLine() . ' -- page: ' . $num_page;
+                throw new \Exception($this->error);
+            }
+
+            // on vire les éléments avec la clé 'manifestation' à null => pas d'audio
+            foreach ($items_array as $k => $v) {
+                if ($v['manifestation'] == null) {
+                    unset($items_array[$k]);
                 }
+            }
+
+            // on a les infos pour les épisodes (sans 'url') venant de la page html
+            // à partir des 'id', requêtes pour les json correspondants
+            // ça complète alors les épisodes
+            foreach ($items_array as $k => $v) {
+                $id = $v['id'];
+                $url = 'https://www.radiofrance.fr/transistor/aod/' . $id;
+
+                // TODO si false, on continue (et on vire cet item) ou exception et c'est fini ?
+                $ret_json = $this->getHtml($url);
+                if ($ret_json === false) {
+                    $this->error = 'Le scraping a échoué : ' . $url;
+                    throw new \Exception($this->error);
+                }
+                $item_fetch = json_decode($ret_json, true, 512, JSON_THROW_ON_ERROR);
+                $items_array[$k] = array_merge($items_array[$k], $item_fetch);
+            }
+
+            // au passage, le nom de l'émission, pour PodcastSeries
+            $this->page->emission = $this->page->emission ?? $items_array[0]['metadata']['firstLine'] ?? $this->page->title;
+
+            // on assigne les items
+            foreach ($items_array as $info) {
+                $item = $this->setItemFromSeries($this->webpage_url, $info);
+                $this->page->all_items[] = $item;
             }
 
             // limite ?
             if ($this->max_items == -1 || count($this->page->all_items) <= $this->max_items) {
-                $a_next = $this->getNextSeries();
+                $a_next = $next;
             } else {
-                $a_next = 'null';
+                $a_next = null;
             }
             // si le query contient genre ...?p=3 on ne scrape qu'une page
             if (strpos((string)parse_url($this->webpage_url, PHP_URL_QUERY), 'p=') !== false) {
-                $a_next = 'null';
+                $a_next = null;
             }
 
             ++$num_page;
         }
         return true;
-    }
-
-    /**
-     * From current html retrieve a.next ex: 'a.next="MjA=";'
-     * @return string ex: "MjA=" or 'null'
-     */
-    private function getNextSeries(): string
-    {
-        preg_match('/a\.next=(.{4,6});/', $this->html, $matches);
-        $a_next = $matches[1] ?? 'null';
-        $a_next = trim($a_next, '"');
-        return $a_next;
     }
 
     public function pruneCache(): void
@@ -575,9 +553,9 @@ class RFrance
         $rssfeed = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         $rssfeed .= '<rss version="2.0">' . "\n";
         if ($this->page->type == 'RadioSeries') {
-            $rssfeed .= '<channel>' . "\n" . '<title>' . hexa_encoding($this->page->emission) . '</title>'. "\n";
+            $rssfeed .= '<channel>' . "\n" . '<title>' . hexa_encoding($this->page->emission ?? '') . '</title>'. "\n";
         } else {
-            $rssfeed .= '<channel>' . "\n" . '<title>' . hexa_encoding($this->page->title) . '</title>'. "\n";
+            $rssfeed .= '<channel>' . "\n" . '<title>' . hexa_encoding($this->page->title ?? '') . '</title>'. "\n";
         }
         $rssfeed .= '<link>' . $this->page->webpage_url . '</link>' . "\n";
         $rssfeed .= '<description>' . hexa_encoding($this->page->description) . '</description>' . "\n";
@@ -648,7 +626,7 @@ class RFrance
         }
         $json['playlist_count'] = $nb_items;
         $json['_type'] = 'playlist';
-        foreach($this->page->all_items as $entrie) {
+        foreach ($this->page->all_items as $entrie) {
             $new = object_to_array($entrie);
             $new['playlist'] = ($new['emission']) ?? '';
             $json['entries'][] = $new;

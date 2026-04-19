@@ -1,4 +1,5 @@
 <?php
+
 /*
  * (c) flatgreen <flatgreen@gmail.com>
  *
@@ -21,6 +22,19 @@ function duration_ISO_to_timestamp(string $duration_iso): int
     $duration_date = new \DateInterval($duration_iso);
     $duration = date_create('@0')->add($duration_date)->getTimestamp();
     return $duration;
+}
+
+function date_french_to_timestamp(string $date, ?int $default = null): int
+{
+    date_default_timezone_set('Europe/Paris');
+    $date = strtolower(trim($date));
+    $english_days = array('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday');
+    $french_days = array('lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche');
+    $english_months = array('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December');
+    $french_months = array('janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre');
+    $replace = str_replace($french_days, $english_days, str_replace($french_months, $english_months, $date));
+    $timestamp = strtotime($replace);
+    return ($timestamp !== false) ? $timestamp : ($default) ?? time();
 }
 
 /**
@@ -94,7 +108,7 @@ function from_js_obj_to_array(string $js_object): array
 {
     $items_object = explode(';', $js_object);
     $items_array = [];
-    foreach($items_object as $i_obj) {
+    foreach ($items_object as $i_obj) {
         list($i, $property) = explode('.', $i_obj, 2);
         list($key, $value) = explode('=', $property, 2);
         $items_array[$i][$key] = trim($value, '"');
@@ -115,7 +129,7 @@ function from_js_dict_to_array(string $dict): array
     }
     $brut = trim($dict, '{}');
     $pairs = explode(',', $brut);
-    foreach($pairs as $v) {
+    foreach ($pairs as $v) {
         list($i, $value) = explode(':', $v, 2);
         $final[$i] = trim($value, '"');
     }
@@ -155,7 +169,7 @@ function get_itema($media_url)
  */
 function object_to_array($object)
 {
-    if(!is_object($object) && !is_array($object)) {
+    if (!is_object($object) && !is_array($object)) {
         return $object;
     }
 
@@ -163,20 +177,20 @@ function object_to_array($object)
 }
 
 /**
- * Specific search function, with tag with attribute and attribute value
+ * Specific DOM search function, with tag with attribute and attribute value
  *
  * @param \DOMDocument $dom
  * @param string $tag
  * @param string $attr
- * @param string $attr_val
- * @return array<\DOMElement>
+ * @param string $attr_value
+ * @return array<\DOMElement> or []
  */
-function find_in_dom(\DOMDocument $dom, string $tag, string $attr, string $attr_val)
+function find_in_dom(\DOMDocument $dom, string $tag, string $attr, string $attr_value)
 {
     $ret = [];
     $all_tag_itels = $dom->getElementsByTagName($tag);
-    foreach($all_tag_itels as $item) {
-        if ($item->hasAttribute($attr) && $item->getAttribute($attr) == $attr_val) {
+    foreach ($all_tag_itels as $item) {
+        if ($item->hasAttribute($attr) && $item->getAttribute($attr) == $attr_value) {
             $ret[] = $item;
         }
     }
