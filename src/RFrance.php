@@ -77,7 +77,7 @@ class RFrance
     private function isValidUrl(string $url): bool
     {
         $url = strtok($url, '?#');
-        
+
         if (filter_var($url, FILTER_VALIDATE_URL) === false || $url === false) {
             $this->error = 'url non valide';
             return false;
@@ -124,7 +124,7 @@ class RFrance
             $good_type = (count($ar_one_type) > 1) ? max($ar_one_type) : array_shift($ar_one_type);
             $ar_final[$type] = $good_type;
         }
-        
+
         return $ar_final;
     }
 
@@ -193,23 +193,17 @@ class RFrance
             return true;
         }
 
-        // cas 'WebPage', selon mainEntity@type :
+        // cas 'WebPage', avec et selon mainEntity@type :
         // - 'RadioSeries' c'est une émission de radio (liste épisodes ou de saison)
         // - 'PodcastSeries' une liste d'épisode ('série' ou podcast seul)
-        if (in_array('WebPage', $graph_keys)) {
-            if (isset($graph['WebPage']['mainEntity'])) {
-                $this->setPageSeries($graph);
-                return $this->setAllItemsFromSerie();
-            } else {
-                $this->page->type = 'WebPage';
-                $this->page->title = $graph['WebPage']['name'];
-                $this->page->description = $graph['WebPage']['description'];
-                $this->page->image = $this->extractImageMeta();
-                return true;
-            }
+        if (in_array('WebPage', $graph_keys) && isset($graph['WebPage']['mainEntity'])) {
+
+            $this->setPageSeries($graph);
+            $this->setAllItemsFromSerie();
+            return true;
         }
 
-        // cas 'NewsArticle', c'est un article de blabla
+        // cas 'NewsArticle' (et|ou 'WebPage'), c'est un article de blabla
         // il peut y avoir des encarts, on essaie
         if (in_array('NewsArticle', $graph_keys)) {
             $graph = $graph['NewsArticle'];
@@ -223,9 +217,9 @@ class RFrance
             return true;
         }
 
-        $this->error = 'Pas de donnée extraite (pas d\'audio ?)';
+        $this->error = 'Pas de donnée extraite';
         // throw new \Exception($this->error);
-        
+
         return false;
     }
 
@@ -450,7 +444,7 @@ class RFrance
     /**
      * Populate $all_items[] from serie page
      */
-    private function setAllItemsFromSerie(): bool
+    private function setAllItemsFromSerie(): void
     {
         $num_page = 1;
         $a_next = '';
@@ -535,7 +529,6 @@ class RFrance
 
             ++$num_page;
         }
-        return true;
     }
 
     public function pruneCache(): void

@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 try to follow [Semantic Versioning](https://semver.org/)
 
 ## [Unreleased]
+
+## 2.6.1 - 202606-05 Little bug fix
+### Fixed
+- Les "encarts" n'étaient plus détectés, c'est réglé ! (changement de type de la page ?)
+- maj des tests avec le nouveau site de rf
+
 ## 2.6.0 - 2026-04-19
 ### Fixed
 - le site de RF change, cette classe aussi, gros refactoring

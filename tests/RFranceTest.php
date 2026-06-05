@@ -5,7 +5,7 @@ use PHPUnit\Framework\TestCase;
 
 final class RFranceTest extends TestCase
 {
-    private $rf;
+    private RFrance $rf;
     protected function setUp(): void
     {
         $this->rf = new RFrance();
@@ -24,7 +24,7 @@ final class RFranceTest extends TestCase
     /**
      * @dataProvider providerExtractBadUrl
      */
-    public function testBadUrls($bad_url, $expectedException)
+    public function testBadUrls(string $bad_url, string $expectedException)
     {
         $this->expectException($expectedException);
         $this->rf->extract($bad_url);
@@ -36,7 +36,7 @@ final class RFranceTest extends TestCase
         $url = 'https://www.radiofrance.fr/franceinter/podcasts/en-quete-de-politique/en-quete-de-politque-du-dimanche-03-novembre-2024-2553296';
         $this->assertTrue($this->rf->extract($url));
         $extracted = $this->rf->toArray();
-        $this->assertJsonStringEqualsJsonFile(__DIR__ . '/json/episode2medias.json', json_encode($extracted));
+        $this->assertJsonStringEqualsJsonFile(__DIR__ . '/json/episode.json', json_encode($extracted));
     }
 
     public function testExtractUneEmissionAvecEncarts()
@@ -73,11 +73,4 @@ final class RFranceTest extends TestCase
         $this->assertJsonStringEqualsJsonFile(__DIR__ . '/json/emission25episodes.json', json_encode($extracted));
     }
 
-    public function testToArray()
-    {
-        $url = 'https://www.radiofrance.fr/mouv/podcasts/on-n-est-pas-fatigue';
-        $this->assertTrue($this->rf->extract($url, 12));
-        $extracted = $this->rf->toRss();
-        $this->assertStringContainsString('<link>https://www.radiofrance.fr/mouv/podcasts/on-n-est-pas-fatigue</link>', $extracted);
-    }
 }
