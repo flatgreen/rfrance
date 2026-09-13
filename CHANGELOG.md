@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 try to follow [Semantic Versioning](https://semver.org/)
 
 ## [Unreleased]
+## 2.6.2 - 2026-09-13 api change a little and hop !
+### Fixed
+- Un épisode simple était bloqué par 'id' enlevé
+- Les playlists étaient en error par un petit changement dans le js/json de RF
 
 ## 2.6.1 - 202606-05 Little bug fix
 ### Fixed

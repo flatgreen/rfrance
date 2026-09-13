@@ -197,7 +197,6 @@ class RFrance
         // - 'RadioSeries' c'est une émission de radio (liste épisodes ou de saison)
         // - 'PodcastSeries' une liste d'épisode ('série' ou podcast seul)
         if (in_array('WebPage', $graph_keys) && isset($graph['WebPage']['mainEntity'])) {
-
             $this->setPageSeries($graph);
             $this->setAllItemsFromSerie();
             return true;
@@ -266,7 +265,7 @@ class RFrance
         $item = new Item();
         $episode_graphe = $graph['RadioEpisode'];
 
-        $item->webpage_url = $graph['NewsArticle']['mainEntityOfPage']['@id'];
+        $item->webpage_url = $graph['NewsArticle']['mainEntityOfPage'];
         $item->title = trim(html_entity_decode($graph['NewsArticle']['headline']));
         $item->id = md5($item->title);
         $item->description = trim(html_entity_decode($graph['NewsArticle']['description']));
@@ -278,12 +277,10 @@ class RFrance
         $item->mimetype = $episode_graphe['mainEntity']['encodingFormat'];
         $item->duration = duration_ISO_to_timestamp($episode_graphe['mainEntity']['duration']);
 
-
         // on test si plusieurs media disponibles
         // ==> Abandon au 17 avril 2026, c'est possible en scrapant le 1er bouton,
         // prendre l'id et avec une requête sur aod avoir tous les medias.
-        // à priori, RF délivre la meileure qualité
-        // voir aussi Item.php
+        // à priori, RF délivre la meileure qualité, voir aussi Item.php
 
         $this->page->all_items[] = $item;
     }
@@ -466,14 +463,19 @@ class RFrance
             }
 
             // on cherche la grande liste de tous les épisodes, on en profite pour prendre 'next'
-            $ret = preg_match('/expressions:{items:(\[.*?\]),next:(.{6})}/', $this->html, $matches);
+            // $ret = preg_match('/expressions:{items:(\[.*?\]),next:(.{6})}/', $this->html, $matches);
+            $ret = preg_match('/expressions:{.*?items:(\[.*?\]).*?}/', $this->html, $matches);
             if ($ret === false || !isset($matches[0])) {
                 throw new \Exception('Pas d\'information extraite (page : ' . $num_page . ')');
             }
-
-            // next:"MjA=" or next:void 0
-            $next = trim($matches[2], '"');
-            $next = ($next == 'void 0' || $next == null) ? null : $next;
+            $ret_next = preg_match('/next:(.{6})/', $this->html, $matches_next);
+            if ($ret_next === false || !isset($matches_next[0])) {
+                $next = null;
+            } else {
+                // next:"MjA=" or next:void 0 or next:null, finally 'MjA=' or null
+                $next = trim($matches_next[1], '"');
+                $next = ($next == 'void 0' || $next == null || str_contains($next, 'null')) ? null : $next;
+            }
 
             $matches[1] = str_replace('void 0', 'null', $matches[1]);
             try {
