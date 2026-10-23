@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 try to follow [Semantic Versioning](https://semver.org/)
 
 ## [Unreleased]
+
+## 2.6.3 - 2026-10-23 little fix
+### Fixed
+- L'image sur un épisode n'était pas toujours bien scrapée
+- S'il restait des '[]' dans les textes des séries, ça plantait (json5)
+
 ## 2.6.2 - 2026-09-13 api change a little and hop !
 ### Fixed
 - Un épisode simple était bloqué par 'id' enlevé

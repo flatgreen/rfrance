@@ -185,7 +185,7 @@ class RFrance
         $graph = $this->getGraphFromScriptJson();
         $graph_keys = array_keys($graph);
 
-        // un seul épisode (on peut avoir des "encarts")
+        // un seul épisode (on peut avoir des "encarts"), il y a 'NewsArticle'
         if (in_array('RadioEpisode', $graph_keys)) {
             $this->setPageRadioEpisode($graph);
             $this->setItemRadioEpisode($graph);
@@ -193,7 +193,7 @@ class RFrance
             return true;
         }
 
-        // cas 'WebPage', avec et selon mainEntity@type :
+        // cas 'WebPage' (pas de 'NewsArticle'), avec et selon mainEntity@type :
         // - 'RadioSeries' c'est une émission de radio (liste épisodes ou de saison)
         // - 'PodcastSeries' une liste d'épisode ('série' ou podcast seul)
         if (in_array('WebPage', $graph_keys) && isset($graph['WebPage']['mainEntity'])) {
@@ -246,12 +246,14 @@ class RFrance
         $this->page->emission = trim($graph['RadioEpisode']['partOfSeries']['name']);
         $this->page->title = trim(html_entity_decode($graph['NewsArticle']['headline']));
         $this->page->description = trim(html_entity_decode($graph['NewsArticle']['description']));
-        $this->page->image = $this->extractImageArray($graph['RadioEpisode']['image']);
+        $this->page->image = $this->extractImageMeta();
         $this->page->timestamp = strtotime($graph['RadioEpisode']['dateCreated']);
     }
 
     /**
      * Set Item from the good graph for one radio episode
+     * 
+     * Il ne semble pas avoir moyen facile de choper le nom de la playlist
      *
      * @param mixed[] $graph
      */
@@ -270,7 +272,7 @@ class RFrance
         $item->id = md5($item->title);
         $item->description = trim(html_entity_decode($graph['NewsArticle']['description']));
         $item->timestamp = strtotime($graph['RadioEpisode']['dateCreated']);
-        $item->thumbnail = $graph['RadioEpisode']['image']['url'];
+        $item->thumbnail = $graph['NewsArticle']['image']['url'];
         $item->emission = trim($graph['RadioEpisode']['partOfSeries']['name']);
 
         $item->url = $episode_graphe['mainEntity']['contentUrl'];
@@ -313,26 +315,10 @@ class RFrance
     }
 
     /**
-     * From an array ['url' =>, 'height' =>, 'width' => ] set an image object
-     *
-     * image dans les @graph depuis nov. 2024 (et aussi dans les meta retour avril 2026)
-     *
-     * @param string[] $info_image
-     * @return stdClass $image
-     */
-    private function extractImageArray(array $info_image)
-    {
-        $image = new stdClass();
-        $image->src = $info_image['url'] ?? null;
-        $image->height = $info_image['height'] ?? null;
-        $image->width = $info_image['width'] ?? null;
-        return $image;
-    }
-
-    /**
      * Use the metadata to retriev image infos
      *
-     * image dans @graph disparue depuis avril 2026 (à voir?), retour dans les meta
+     * image dans @graph disparue depuis avril 2026 (à voir, semble revenir 10/2026),
+     * retour dans les meta
      *
      * <meta property="og:image" content="https://www.radiofrance.fr/pikapi/images/dea723ef-66b0-4b7b-bc2c-d82db0a4dbb7/1200x680"/> <!--[--><meta property="og:image:width" content="1200"/> <meta property="og:image:height" content="680"/>
      *
@@ -463,8 +449,8 @@ class RFrance
             }
 
             // on cherche la grande liste de tous les épisodes, on en profite pour prendre 'next'
-            // $ret = preg_match('/expressions:{items:(\[.*?\]),next:(.{6})}/', $this->html, $matches);
-            $ret = preg_match('/expressions:{.*?items:(\[.*?\]).*?}/', $this->html, $matches);
+            $ret = preg_match('/expressions:{.*?items:(\[.*\]).*?airtime/', $this->html, $matches);
+            // $ret = preg_match('/expressions:{.*?items:(\[.*?\]).*?}/', $this->html, $matches);
             if ($ret === false || !isset($matches[0])) {
                 throw new \Exception('Pas d\'information extraite (page : ' . $num_page . ')');
             }
